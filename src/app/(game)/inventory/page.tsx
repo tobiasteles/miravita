@@ -1,0 +1,12 @@
+import { redirect } from "next/navigation"; import Link from "next/link"; import { eq } from "drizzle-orm"; import { db } from "@/db"; import { inventory, items, elements } from "@/db/schema";
+import { getActiveCharacter } from "@/lib/session"; import { forge } from "@/actions/inventory";
+const RC: Record<string, string> = { comum: "text-violet-300", raro: "text-cyan-300", epico: "text-purple-400", lendario: "text-amber-300" };
+export default async function Inv() {
+  const a = await getActiveCharacter(); if (!a) redirect("/characters");
+  const rows = await db.select({ inv: inventory, it: items, el: elements }).from(inventory).innerJoin(items, eq(inventory.itemId, items.id)).leftJoin(elements, eq(items.elementAtomicNumber, elements.atomicNumber)).where(eq(inventory.characterId, a.c.id));
+  const mats = rows.filter((r) => r.it.type === "material" && r.inv.quantity > 0), gear = rows.filter((r) => r.it.type !== "material");
+  return <main className="mx-auto max-w-xl space-y-3 p-4"><Link href="/play" className="text-violet-300">← Voltar</Link><h1 className="text-xl font-bold">Mochila & Forja</h1>
+    <section className="rounded-lg border border-violet-900 bg-[#171433] p-3"><b>Equipamentos</b>{gear.map((r) => <div key={r.inv.id} className={`py-1 ${RC[r.it.rarity]}`}>{r.inv.equipped ? "✅ " : ""}{r.it.name} · {r.it.rarity} · ATK+{r.it.stats.atk} DEF+{r.it.stats.def} · Dur {r.inv.currentDurability}</div>)}{!gear.length && <div className="text-sm text-violet-400">Nenhum. Forje com 5 unidades de um elemento.</div>}</section>
+    <section className="rounded-lg border border-violet-900 bg-[#171433] p-3"><b>Elementos</b>{mats.map((r) => <div key={r.inv.id} className="flex items-center gap-2 border-t border-violet-900 py-2"><div className="flex-1"><b className={RC[r.it.rarity]}>{r.el?.symbol} · {r.it.name}</b> ×{r.inv.quantity}<div className="text-xs text-violet-400">{r.it.rarity} · {r.el?.atomicMass}u · Mohs {r.el?.mohsHardness ?? 0} · valor {r.it.value}g</div></div>
+      {(["arma", "armadura"] as const).map((k) => <form key={k} action={forge}><input type="hidden" name="z" value={r.it.elementAtomicNumber ?? 0} /><input type="hidden" name="kind" value={k} /><button disabled={r.inv.quantity < 5} className="rounded border border-violet-800 px-2 py-1 text-sm disabled:opacity-30">{k === "arma" ? "Arma" : "Armadura"}</button></form>)}</div>)}</section></main>;
+}
