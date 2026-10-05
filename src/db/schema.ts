@@ -6,13 +6,13 @@ import {
 import { relations, sql } from "drizzle-orm";
 
 /* ───────────── ENUMS ───────────── */
-export const classKeyEnum = pgEnum("class_key", ["exatas", "humanas", "linguagens"]);
+export const classKeyEnum = pgEnum("class_key", ["exatas", "humanas", "linguagens", "matematica", "fisica", "quimica", "portugues", "literatura", "ingles", "artes", "historia", "geografia", "filosofia", "biologia"]);
 export const rarityEnum = pgEnum("rarity", ["comum", "raro", "epico", "lendario"]);
 export const itemTypeEnum = pgEnum("item_type", [
   "material", "arma", "armadura", "acessorio", "catalisador", "consumivel",
 ]);
 export const guildRankEnum = pgEnum("guild_rank", ["lider", "oficial", "veterano", "membro"]);
-export const chatChannelEnum = pgEnum("chat_channel", ["global", "guilda"]);
+export const chatChannelEnum = pgEnum("chat_channel", ["global", "guilda", "local", "privado", "grito", "grupo"]);
 export const biomeEnum = pgEnum("biome", [
   "planicie", "floresta", "deserto", "montanha", "pantano", "tundra", "vulcao", "abismo",
 ]);
@@ -117,6 +117,9 @@ export const characters = pgTable(
     hp: integer("hp").notNull(),
     mp: integer("mp").notNull(),
     gold: bigint("gold", { mode: "number" }).default(0).notNull(),
+    attrs: jsonb("attrs").$type<{ for: number; int: number; des: number }>().default({ for: 0, int: 0, des: 0 }).notNull(),
+    sub: jsonb("sub").$type<number[]>().default([0, 0, 0]).notNull(),
+    domain: jsonb("domain").$type<{ name: string; aspect: string; shout: string; uses: number } | null>(),
     currentMapId: uuid("current_map_id").references(() => maps.id),
     guildId: uuid("guild_id").references(() => guilds.id, { onDelete: "set null" }),
     lastSeenAt: timestamp("last_seen_at"),
@@ -196,6 +199,7 @@ export const chatMessages = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     channel: chatChannelEnum("channel").notNull(),
     guildId: uuid("guild_id").references(() => guilds.id, { onDelete: "cascade" }), // só p/ canal "guilda"
+    mapSlug: text("map_slug"), partyId: uuid("party_id"), toCharacterId: uuid("to_character_id").references(() => characters.id, { onDelete: "cascade" }),
     characterId: uuid("character_id").notNull().references(() => characters.id, { onDelete: "cascade" }),
     content: text("content").notNull(),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -239,3 +243,47 @@ export const battles = pgTable("battles", {
   state: jsonb("state").$type<unknown>().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+/* ───────────── MONSTROS GERADOS POR IA (só conteúdo; os números vêm da fórmula do jogo) ───────────── */
+export const aiMonsters = pgTable("ai_monsters", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  mapSlug: text("map_slug").notNull(),
+  name: text("name").notNull(),
+  lore: text("lore").notNull(),
+  archetype: text("archetype").notNull(), // tank | glass | balanced
+  skillName: text("skill_name"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [uniqueIndex("ai_monsters_name_idx").on(t.mapSlug, t.name)]);
+
+/* ───────────── TELEMETRIA E SUGESTÕES DE BALANCEAMENTO ───────────── */
+export const battleLogs = pgTable("battle_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  characterId: uuid("character_id").references(() => characters.id, { onDelete: "set null" }),
+  mapSlug: text("map_slug").notNull(), classKey: text("class_key").notNull(),
+  charLevel: integer("char_level").notNull(), monsterLevel: integer("monster_level").notNull(),
+  dungeon: boolean("dungeon").notNull(), outcome: text("outcome").notNull(), // win | lose | flee
+  turns: integer("turns").notNull(), hpLeftPct: integer("hp_left_pct").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => [index("battle_logs_created_idx").on(t.createdAt)]);
+export const balanceSuggestions = pgTable("balance_suggestions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  target: text("target").notNull(), issue: text("issue").notNull(), suggestion: text("suggestion").notNull(),
+  severity: text("severity").notNull(), status: text("status").default("pendente").notNull(), // pendente | aplicada | rejeitada
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const questClaims = pgTable("quest_claims", {
+  characterId: uuid("character_id").notNull().references(() => characters.id, { onDelete: "cascade" }), questId: text("quest_id").notNull(),
+  claimedAt: timestamp("claimed_at").defaultNow().notNull(),
+}, (t) => [primaryKey({ columns: [t.characterId, t.questId] })]);
+
+export const questProgress = pgTable("quest_progress", {
+  characterId: uuid("character_id").notNull().references(() => characters.id, { onDelete: "cascade" }), questId: text("quest_id").notNull(), progress: integer("progress").default(0).notNull(),
+}, (t) => [primaryKey({ columns: [t.characterId, t.questId] })]);
+export const parties = pgTable("parties", {
+  id: uuid("id").defaultRandom().primaryKey(), guildId: uuid("guild_id").notNull().references(() => guilds.id, { onDelete: "cascade" }),
+  leaderId: uuid("leader_id").references(() => characters.id, { onDelete: "set null" }), name: text("name").notNull(), createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const partyMembers = pgTable("party_members", {
+  partyId: uuid("party_id").notNull().references(() => parties.id, { onDelete: "cascade" }), characterId: uuid("character_id").notNull().unique().references(() => characters.id, { onDelete: "cascade" }),
+}, (t) => [primaryKey({ columns: [t.partyId, t.characterId] })]);

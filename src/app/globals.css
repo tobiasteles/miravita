@@ -1,2 +1,67 @@
 @import "tailwindcss";
-body { background: #0c0a1f; color: #e8e6ff; }
+body {
+  background: #0c0a1f;
+  color: #e8e6ff;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #2a1a6b55, transparent),
+    radial-gradient(900px 500px at -10% 110%, #0e7490 22, transparent), #0c0a1f;
+  background-attachment: fixed;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+main {
+  animation: fade 0.35s ease-out;
+}
+button,
+a,
+input,
+select {
+  transition: all 0.2s ease;
+}
+[class*="bg-[#171433]"] {
+  background: linear-gradient(160deg, #1b1740e6, #12102ce6);
+  box-shadow:
+    0 0 0 1px #8b5cf622,
+    0 8px 30px #0006;
+  backdrop-filter: blur(6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  main {
+    animation: none;
+  }
+  * {
+    transition: none !important;
+  }
+}
+
+.emblem-glow {
+  filter: drop-shadow(0 0 14px #8b5cf6aa);
+  animation: aura 4s ease-in-out infinite;
+}
+@keyframes aura {
+  50% {
+    filter: drop-shadow(0 0 28px #22d3eecc);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .emblem-glow {
+    animation: none;
+  }
+}
+
+/* pixel art: nunca suavizar as imagens */
+img,
+[style*="url("] {
+  image-rendering: pixelated;
+}

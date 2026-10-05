@@ -1,0 +1,14 @@
+import { CLASS_NAME } from "@/lib/game/classes"; import { Emblem, ClassSeal, Logo, LogoStack, Wordmark } from "@/components/brand/Brand";
+const PAL = [["Aura Violeta", "#8b5cf6"], ["Portal Ciano", "#22d3ee"], ["Ouro Desperto", "#fbbf24"], ["Vazio", "#0c0a1f"], ["Pergaminho", "#171433"], ["Névoa", "#9a96c8"]];
+const DL = ["emblem", "logo-horizontal", ...Object.keys(CLASS_NAME).filter((k) => !["exatas", "humanas", "linguagens"].includes(k)).map((k) => `seal-${k}`)];
+export const metadata = { title: "Miravita — Identidade visual" };
+export default function Brand() {
+  return <main className="mx-auto max-w-2xl space-y-8 p-6"><h1 className="text-center text-2xl font-bold">Identidade visual</h1>
+    <section className="rounded-2xl border border-violet-800/50 p-8"><LogoStack size={150} /></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Conceito</h2><p className="text-sm text-violet-200"><b>Miravita</b> une “mira” (olhar) e “vita” (vida): o Olho do Desperto. A estrela dourada é o poder desperto, o losango é o Portal, as linhas abaixo são as runas do Cristal Primordial e as rachaduras de luz no topo são a aura crescendo.</p></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Selos de classe</h2><div className="flex flex-wrap justify-around gap-3">{Object.entries(CLASS_NAME).map(([k, l]) => <div key={k} className="flex flex-col items-center gap-1"><ClassSeal cls={k} size={104} /><span className="text-sm text-violet-300">{l}</span></div>)}</div></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Versões</h2><div className="flex flex-wrap items-center gap-6"><Logo /><Emblem size={32} /><Emblem size={16} /><Wordmark /></div><p className="mt-2 text-xs text-violet-400">Tamanho mínimo do emblema: 16 px. Mantenha uma margem livre equivalente a 1/4 da altura. Use sobre fundos escuros; não distorça, não troque as cores do gradiente.</p></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Cores</h2><div className="grid grid-cols-3 gap-2">{PAL.map(([n, h]) => <div key={h} className="rounded-lg border border-violet-900 p-2 text-xs"><div className="mb-1 h-10 rounded" style={{ background: h }} />{n}<div className="text-violet-400">{h}</div></div>)}</div></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Tipografia</h2><div className="font-[family-name:var(--font-brand)] text-3xl font-extrabold tracking-widest">Cinzel · títulos</div><div className="text-violet-200">Texto de interface em sans-serif do sistema, para leitura rápida.</div></section>
+    <section><h2 className="mb-2 font-semibold text-amber-300">Downloads (SVG)</h2><div className="flex flex-wrap gap-2">{DL.map((d) => <a key={d} href={`/brand/${d}.svg`} download className="rounded border border-violet-800 px-3 py-1 text-sm hover:bg-violet-900/40">{d}.svg</a>)}</div></section></main>;
+}

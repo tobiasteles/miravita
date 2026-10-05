@@ -1,6 +1,6 @@
 import { config } from "dotenv"; config({ path: ".env.local" });
 import { neon } from "@neondatabase/serverless"; import { drizzle } from "drizzle-orm/neon-http";
-import * as s from "./schema"; import { computeItem } from "../lib/game/item-stats";
+import { CLASS_DEFS, CLASS_KEYS, ARCH, classStats } from "../lib/game/classes"; import * as s from "./schema"; import { computeItem } from "../lib/game/item-stats";
 const db = drizzle(neon(process.env.DATABASE_URL!));
 // [Z, símbolo, nome, massa, Mohs, abundância ppm, categoria]
 const E: [number, string, string, number, number | null, number, string][] = [
@@ -14,19 +14,15 @@ async function main() {
   await db.insert(s.elements).values(E.map(([z,sym,name,m,h,ab,cat]) => ({ atomicNumber:z, symbol:sym, name, atomicMass:m, mohsHardness:h, crustalAbundancePpm:ab, category:cat }))).onConflictDoNothing();
   await db.insert(s.items).values(E.map(([z,,name,m,h,ab]) => { const i = computeItem({atomicNumber:z,atomicMass:m,mohsHardness:h,crustalAbundancePpm:ab});
     return { elementAtomicNumber:z, name, type:"material" as const, rarity:i.rarity, stats:{atk:i.atk,def:i.def,durability:i.durability}, value:i.value }; }));
-  await db.insert(s.classes).values([
-   { key:"exatas", name:"Ciências da Natureza & Exatas", archetype:"Combatente", description:"Combos físicos, crítico quântico e resistência mecânica.", baseStats:st(120,30,14,8,10), perLevelStats:st(14,2,5,1.4,0.05) },
-   { key:"humanas", name:"Ciências Humanas", archetype:"Invocador", description:"Invoca figuras históricas como servos de batalha.", baseStats:st(90,60,8,5,5), perLevelStats:st(10,3,4.4,0.9,0.05) },
-   { key:"linguagens", name:"Linguagens & Códigos", archetype:"Conjurador", description:"Magias de área, buffs de oratória e maldições semânticas.", baseStats:st(80,80,10,4,5), perLevelStats:st(9,4,4.8,0.8,0.05) },
-  ]).onConflictDoNothing();
+  await db.insert(s.classes).values(CLASS_KEYS.map((k) => ({ key: k as "exatas", name: CLASS_DEFS[k].name, archetype: ARCH[CLASS_DEFS[k].block], description: CLASS_DEFS[k].desc, baseStats: classStats(k).base, perLevelStats: classStats(k).per }))).onConflictDoNothing();
   await db.insert(s.traits).values([
    { id:"analitico", name:"Analítico", description:"+5% crítico", bonus:{ crit:5 } }, { id:"empatico", name:"Empático", description:"+15% HP", bonus:{ hp:0.15 } },
-   { id:"criativo", name:"Criativo", description:"+20% MP", bonus:{ mp:0.2 } }, { id:"resiliente", name:"Resiliente", description:"+12% defesa", bonus:{ def:0.12 } },
+   { id:"criativo", name:"Criativo", description:"+20% EA", bonus:{ mp:0.2 } }, { id:"resiliente", name:"Resiliente", description:"+12% defesa", bonus:{ def:0.12 } },
   ]).onConflictDoNothing();
   await db.insert(s.maps).values([
    { slug:"planicie-de-aurora", name:"Planície de Aurora", biome:"planicie", minLevel:1 }, { slug:"floresta-sussurrante", name:"Floresta Sussurrante", biome:"floresta", minLevel:10 },
    { slug:"deserto-cinzento", name:"Deserto Cinzento", biome:"deserto", minLevel:30 }, { slug:"montanha-de-ferro", name:"Montanha de Ferro", biome:"montanha", minLevel:60 },
-   { slug:"pantano-radioativo", name:"Pântano Radioativo", biome:"pantano", minLevel:100 }, { slug:"abismo-do-cacador", name:"Abismo do Caçador", biome:"abismo", minLevel:150 },
+   { slug:"pantano-radioativo", name:"Pântano Sombrio", biome:"pantano", minLevel:100 }, { slug:"abismo-do-cacador", name:"Abismo do Caçador", biome:"abismo", minLevel:150 },
   ]).onConflictDoNothing();
   console.log("Seed concluído.");
 }

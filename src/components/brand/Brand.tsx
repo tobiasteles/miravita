@@ -1,0 +1,7 @@
+import { EMBLEM, SEALS } from "@/lib/brand";
+const Svg = ({ html, size, className = "", label }: { html: string; size: number; className?: string; label: string }) => <div role="img" aria-label={label} className={`shrink-0 ${className}`} style={{ width: size, height: size }} dangerouslySetInnerHTML={{ __html: html.replace("<svg ", '<svg width="100%" height="100%" ') }} />;
+export const Emblem = ({ size = 64, glow = false }: { size?: number; glow?: boolean }) => <Svg html={EMBLEM} size={size} label="Emblema de Miravita" className={glow ? "emblem-glow" : ""} />;
+export const ClassSeal = ({ cls, size = 64 }: { cls: string; size?: number }) => <Svg html={SEALS[cls] ?? EMBLEM} size={size} label={`Selo ${cls}`} />;
+export const Wordmark = ({ className = "text-2xl" }: { className?: string }) => <span className={`bg-gradient-to-r from-violet-300 via-white to-cyan-300 bg-clip-text font-[family-name:var(--font-brand)] font-extrabold tracking-[.3em] text-transparent ${className}`}>MIRAVITA</span>;
+export const Logo = ({ size = 40 }: { size?: number }) => <div className="flex items-center gap-3"><Emblem size={size} /><Wordmark className="text-xl" /></div>;
+export const LogoStack = ({ size = 128 }: { size?: number }) => <div className="flex flex-col items-center gap-3"><Emblem size={size} glow /><Wordmark className="text-5xl sm:text-6xl" /><div className="text-xs uppercase tracking-[.45em] text-violet-300">Desperte o seu poder</div></div>;
