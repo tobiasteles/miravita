@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link"; import { useRouter, usePathname } from "next/navigation"; import { useEffect } from "react";
 const KEYS = [["q", "/quests", "Missões", "📜"], ["o", "/inventory", "Inventário", "🎒"], ["t", "/skills", "Técnicas", "⚡"], ["g", "/guild", "Guilda", "🏰"], ["c", "#chat", "Chat", "💬"], ["h", "/attributes", "Habilidades", "📈"], ["m", "/map", "Mapa", "🗺️"]] as const;
-const chat = () => document.getElementById("chat-input")?.focus();
+const chat = () => { dispatchEvent(new Event("mv-chat-open")); setTimeout(() => document.getElementById("chat-input")?.focus(), 60); };
 export function HotkeyListener() {
   const r = useRouter(), p = usePathname();
   useEffect(() => { const h = (e: KeyboardEvent) => { const t = e.target as HTMLElement; if (/INPUT|TEXTAREA|SELECT/.test(t.tagName) || e.ctrlKey || e.metaKey || e.altKey || p.startsWith("/battle")) return;

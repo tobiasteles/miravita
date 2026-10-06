@@ -65,3 +65,83 @@ img,
 [style*="url("] {
   image-rendering: pixelated;
 }
+
+/* ---- tela inicial: movimento lento do fundo e vaga-lumes ---- */
+@keyframes pan {
+  from {
+    transform: scale(1.05) translateX(-1%);
+  }
+  to {
+    transform: scale(1.12) translateX(1%);
+  }
+}
+.bg-pan {
+  animation: pan 40s ease-in-out infinite alternate;
+}
+@keyframes fly {
+  0% {
+    transform: translateY(0) scale(0.6);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-60vh) translateX(20px) scale(1);
+    opacity: 0;
+  }
+}
+.fly {
+  position: absolute;
+  bottom: -2vh;
+  width: 4px;
+  height: 4px;
+  border-radius: 9999px;
+  background: #fde68a;
+  box-shadow: 0 0 10px 3px #fbbf2499;
+  animation: fly linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-pan,
+  .fly {
+    animation: none;
+  }
+  .fly {
+    display: none;
+  }
+}
+
+/* ---- cursor temático do jogo (vale em toda a janela do jogo) ---- */
+html,
+body {
+  cursor:
+    url(/cursors/cursor.svg) 1 1,
+    auto;
+}
+a,
+button,
+summary,
+select,
+label,
+[role="button"],
+.cursor-pointer,
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  cursor:
+    url(/cursors/cursor-pointer.svg) 1 1,
+    pointer;
+}
+button:disabled,
+input:disabled,
+[aria-disabled="true"] {
+  cursor:
+    url(/cursors/cursor.svg) 1 1,
+    not-allowed;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
+    :disabled
+  ),
+textarea {
+  cursor: text;
+}

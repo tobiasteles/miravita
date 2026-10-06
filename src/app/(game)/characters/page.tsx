@@ -1,15 +1,12 @@
-import SafeImg from "@/components/game/SafeImg";
-import { CLASS_NAME, CLASS_KEYS, CLASS_DEFS, BLOCKS } from "@/lib/game/classes";
 import { auth } from "@clerk/nextjs/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { characters, traits } from "@/db/schema";
-import {
-  createCharacter,
-  deleteCharacter,
-  selectCharacter,
-} from "@/actions/character";
-const AV = CLASS_KEYS.flatMap((c) => [1, 2, 3].map((i) => `class_${c}_0${i}`));
+import { deleteCharacter, selectCharacter } from "@/actions/character";
+import { CLASS_NAME } from "@/lib/game/classes";
+import SafeImg from "@/components/game/SafeImg";
+import CreateCharacter from "@/components/game/CreateCharacter";
+
 export default async function Page({
   searchParams,
 }: {
@@ -25,7 +22,7 @@ export default async function Page({
   return (
     <main className="mx-auto max-w-xl space-y-4 p-4">
       <h1 className="text-2xl font-bold">Seus personagens ({list.length}/6)</h1>
-      {error && <p className="text-rose-400">{error}</p>}
+      {error && list.length >= 6 && <p className="text-rose-400">{error}</p>}
       <div className="grid grid-cols-2 gap-3">
         {list.map((c) => (
           <div
@@ -35,7 +32,7 @@ export default async function Page({
             <SafeImg
               src={`/avatars/${c.avatarId}.png`}
               alt={c.avatarId}
-              className="mb-2 h-14 w-14 rounded-full bg-violet-950"
+              className="mb-2 h-14 w-14 rounded-full bg-violet-950 object-cover"
             />
             <b>{c.name}</b>
             <div className="text-sm text-violet-300">
@@ -53,53 +50,19 @@ export default async function Page({
             </form>
           </div>
         ))}
-      </div>
-      {list.length < 6 && (
-        <form
-          action={createCharacter}
-          className="space-y-3 rounded-lg border border-violet-900 bg-[#171433] p-4"
-        >
-          <h2 className="font-semibold">Novo personagem</h2>
-          <input
-            name="name"
-            required
-            minLength={3}
-            maxLength={16}
-            placeholder="Nome único"
-            className="w-full rounded bg-[#0c0a1f] p-2"
+        {/* key = nº de personagens: a janela fecha sozinha depois que o personagem é criado */}
+        {list.length < 6 && (
+          <CreateCharacter
+            key={list.length}
+            error={error}
+            traits={tr.map(({ id, name, description }) => ({
+              id,
+              name,
+              description,
+            }))}
           />
-          <select name="cls" className="w-full rounded bg-[#0c0a1f] p-2">
-            {BLOCKS.map(([bl, label]) => (
-              <optgroup key={bl} label={label}>
-                {CLASS_KEYS.filter((k) => CLASS_DEFS[k].block === bl).map(
-                  (k) => (
-                    <option key={k} value={k}>
-                      {CLASS_DEFS[k].name}
-                    </option>
-                  ),
-                )}
-              </optgroup>
-            ))}
-          </select>
-          <select name="avatar" className="w-full rounded bg-[#0c0a1f] p-2">
-            {AV.map((a) => (
-              <option key={a}>{a}</option>
-            ))}
-          </select>
-          <fieldset className="flex flex-wrap gap-3 text-sm">
-            {tr.map((t) => (
-              <label key={t.id}>
-                <input type="checkbox" name="traits" value={t.id} /> {t.name} (
-                {t.description})
-              </label>
-            ))}
-            <span className="text-violet-400">máx. 2</span>
-          </fieldset>
-          <button className="rounded bg-violet-600 px-4 py-2 font-semibold">
-            Criar
-          </button>
-        </form>
-      )}
+        )}
+      </div>
     </main>
   );
 }

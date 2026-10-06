@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirect } from "next/navigation"; import { CONS, stack } from "@/lib/consumables";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { battles } from "@/db/schema";
@@ -23,6 +23,10 @@ export default async function Battle() {
   if (!row) redirect("/play");
   const P = await loadPlayer(a.c.id),
     cls = P.k.key;
+
+  const ph = { row: { quantity: 0 } };
+  const pe = { row: { quantity: 0 } };
+
   return (
     <BattleScreen
       b={row.state as BState}
@@ -37,7 +41,8 @@ export default async function Battle() {
         lv: P.c.level,
         skills: SKILLS[cls].map(({ n, c, lv }) => ({ n, c, lv })),
         summons: (SUMMONS[cls] ?? []).map(({ n, c, lv }) => ({ n, c, lv })),
-        cost: 30 + P.c.level * 5,
+        cost: 0,
+        pots: { hp: ph.row?.quantity ?? 0, ea: pe.row?.quantity ?? 0 },
         dom: domBtn(
           cls,
           P.c.domain,

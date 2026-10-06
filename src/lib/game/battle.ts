@@ -4,7 +4,7 @@ import { monsterXp } from "./xp";
 export type Stats = { hp: number; mp: number; atk: number; def: number; crit: number; sv?: number; ev?: number };
 export type Mon = { n: string; L: number; hp: number; mx: number; atk: number; def: number; xp: number; boss: boolean };
 export type BState = { e: Mon; q: Mon[]; wave: number; dungeon: boolean; mapSlug: string; buf: number; cu: number; sv: { n: string; p: number; t: number } | null; log: string[]; over: null | "wave" | "win" | "lose" | "flee"; res: string[]; t?: number; dom?: { t: number; n: string; p: number; foe: number; heal: number; ea: number; stun: number; self: number; k?: string } | null; domUsed?: boolean; burn?: number; dot?: { t: number; p: number } | null; ev?: number; skip?: boolean };
-export type Act = { a: "domain" } | { a: "skill"; i: number; m: number } | { a: "summon"; i: number } | { a: "potion" } | { a: "flee" };
+export type Act = { a: "domain" } | { a: "skill"; i: number; m: number } | { a: "summon"; i: number } | { a: "potion"; k: "hp" | "ea" } | { a: "flee" };
 export const tierOf = (lv: number) => (lv < 50 ? "Fundamental" : lv < 120 ? "Médio" : "Superior");
 export const DOMAIN_TERM = "Expansão Arcana"; // nome genérico da técnica suprema: troque aqui
 export const DOMAINS: Record<string, { n: string; lv: number; p: number; foe: number; heal?: number; d: string }> = {
@@ -72,8 +72,8 @@ export function step(b: BState, p: { hp: number; mp: number; gold: number; lv: n
     const s = SUMMONS[cls]?.[act.i]; if ((b.burn ?? 0) > 0) return L(b, "Esgotamento técnico: sem invocações."); if (!s || p.mp < s.c || p.lv < s.lv) return L(b, "Não foi possível invocar.");
     p.mp -= s.c; b.sv = { n: s.n, p: s.p, t: 3 }; L(b, `Você invocou ${s.n}!`);
   } else if (act.a === "potion") {
-    const cost = 30 + p.lv * 5; if (p.gold < cost) return L(b, `Ouro insuficiente (${cost}g).`);
-    p.gold -= cost; p.hp = Math.min(q.hp, p.hp + Math.round(q.hp * .4)); L(b, `Poção (-${cost}g): +40% HP.`);
+    if (act.k === "ea") { p.mp = Math.min(q.mp, p.mp + Math.round(q.mp * .4)); L(b, "Poção de EA: +40% EA."); }
+    else { p.hp = Math.min(q.hp, p.hp + Math.round(q.hp * .4)); L(b, "Poção de HP: +40% HP."); }
   } else if (act.a === "domain") {
     const D = DOMAINS[cls], f = dm ? domFx(cls, dm) : null, need = f ? Math.round(q.mp * f.cost) : 0;
     if (!D || !f || p.lv < D.lv || b.domUsed || b.dom || (b.burn ?? 0) > 0) return L(b, "Expansão indisponível (não forjada, já usada, ativa ou em esgotamento).");
