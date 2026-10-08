@@ -1,5 +1,5 @@
 "use server";
-import { redirect } from "next/navigation"; import { CONS, stack } from "@/lib/consumables";
+import { redirect } from "next/navigation"; import { track } from "@/lib/rewards"; import { CONS, stack } from "@/lib/consumables";
 import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -90,6 +90,7 @@ export async function rest() {
   revalidatePath("/play");
 }
 async function addMat(cid: string, z: number, n: number) {
+  await track(cid, "gather", "", n); // diária: coleta
   const [it] = await db
     .select({ id: items.id })
     .from(items)
@@ -139,6 +140,11 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       b.log = [`🌀 Onda ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
     }
   } else {
+    if (act.a === "potion") { // gasta 1 poção do estoque; sem estoque, avisa e não perde o turno
+      const nm = act.k === "ea" ? CONS.ea.name : CONS.hp.name, { row } = await stack(cid, nm);
+      if (!row || row.quantity < 1) { b.log.push(`Você não tem ${nm}. Compre na Loja de Conveniência.`); await db.update(battles).set({ state: b }).where(eq(battles.characterId, cid)); return; }
+      await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
+    }
     const before = b.over,
       used0 = b.domUsed;
     step(b, p, P.q, P.k.key, act, P.c.domain);
@@ -189,6 +195,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         g = rn(3, 8) + b.e.L,
         gain = Math.round(b.e.xp * XPM * (1 + 0.1 * Math.max(0, pb)));
       p.gold += g;
+      await track(cid, "kill", b.mapSlug); // capítulos e diária: caçada
       for (const k of KILL.filter((k) => k.slug === b.mapSlug))
         await db
           .insert(questProgress)
@@ -208,7 +215,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         await addMat(cid, z, n);
         b.res.push(`+${n}× elemento Z=${z}`);
       }
-      if (b.over === "win" && b.dungeon) {
+      if (b.over === "win" && b.dungeon) { await track(cid, "portal", b.mapSlug);
         for (let i = 0; i < 2; i++) {
           const z = pk(w.dg),
             n = rn(1, 3);
