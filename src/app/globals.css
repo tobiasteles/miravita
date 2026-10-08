@@ -145,3 +145,78 @@ input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not(
 textarea {
   cursor: text;
 }
+
+/* ---- fundo do jogo (sutil): aurora, estrelas e brasas ---- */
+@keyframes drift-a {
+  from {
+    transform: translate3d(-4%, -2%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(5%, 3%, 0) scale(1.15);
+  }
+}
+@keyframes drift-b {
+  from {
+    transform: translate3d(4%, 2%, 0) scale(1.1);
+  }
+  to {
+    transform: translate3d(-5%, -3%, 0) scale(1);
+  }
+}
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+@keyframes ember {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-70vh) translateX(16px);
+    opacity: 0;
+  }
+}
+.gb-a,
+.gb-b {
+  will-change: transform;
+}
+.gb-a {
+  animation: drift-a 60s ease-in-out infinite alternate;
+}
+.gb-b {
+  animation: drift-b 75s ease-in-out infinite alternate;
+}
+.gb-star {
+  opacity: 0.5;
+  animation: twinkle 7s ease-in-out infinite;
+}
+.gb-ember {
+  position: absolute;
+  bottom: -2vh;
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: #c4b5fd;
+  box-shadow: 0 0 8px 2px #8b5cf655;
+  animation: ember linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gb-a,
+  .gb-b,
+  .gb-star,
+  .gb-ember {
+    animation: none;
+  }
+  .gb-ember {
+    display: none;
+  }
+}
