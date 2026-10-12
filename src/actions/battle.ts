@@ -1,5 +1,8 @@
 "use server";
-import { redirect } from "next/navigation"; import { track } from "@/lib/rewards"; import { CONS, stack } from "@/lib/consumables";
+import { redirect } from "next/navigation";
+import { spawnFor, mkMonster, temper } from "@/lib/game/bestiary";
+import { track } from "@/lib/rewards";
+import { CONS, stack } from "@/lib/consumables";
 import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -23,6 +26,8 @@ import {
   type BState,
 } from "@/lib/game/battle";
 import { WORLD } from "@/lib/game/world";
+import { REALMS } from "@/lib/game/realms";
+import { realmStatus } from "@/lib/game/realm-schedule";
 import { KILL } from "@/lib/game/quests";
 import { applyXp } from "@/lib/game/xp";
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1),
@@ -31,35 +36,41 @@ const XPM = Number(process.env.XP_MULTIPLIER ?? 1),
 
 async function spawn(
   slug: string,
-  names: string[],
-  min: number,
-  boss: boolean,
+  pl: number,
+  kind: "mon" | "sub" | "boss",
+  realm: boolean,
 ) {
-  // 60% de chance de usar monstro gerado pela IA (se existir)
-  if (!boss) {
-    const rows = await db
-      .select()
-      .from(aiMonsters)
-      .where(eq(aiMonsters.mapSlug, slug))
-      .limit(30);
-    if (rows.length && Math.random() < 0.6) {
-      const r = pk(rows);
-      return withArch(mkMon([r.name], min, false), r.archetype);
-    }
-  }
-  return mkMon(names, min, boss);
+  // 30% de chance de usar um monstro criado pela IA (só entre os comuns); no Reino, todos ficam mais fortes
+  let m =
+    kind === "mon" && Math.random() < 0.3
+      ? await (async () => {
+          const rows = await db
+            .select()
+            .from(aiMonsters)
+            .where(eq(aiMonsters.mapSlug, slug))
+            .limit(30);
+          return rows.length
+            ? withArch(
+                mkMonster(pk(rows).name, spawnFor(slug, pl, "mon").L, "mon"),
+                pk(rows).archetype,
+              )
+            : spawnFor(slug, pl, kind);
+        })()
+      : spawnFor(slug, pl, kind);
+  return realm ? temper(m, 1.3, 1.2) : m; // Reino: +30% HP, +20% ATK em cima dos multiplicadores normais
 }
-
 export async function startBattle(fd: FormData) {
   const a = await getActiveCharacter();
   if (!a?.map) redirect("/characters");
-  const w = WORLD[a.map.slug],
-    min = a.map.minLevel,
+  const slug = a.map.slug,
+    lvl = a.c.level,
     dungeon = fd.get("kind") === "dungeon";
-  const sp = (boss: boolean) => spawn(a.map!.slug, w.mons, min, boss);
+  if (dungeon && !realmStatus(slug).open) redirect("/play"); // o Reino só abre na janela de 1h do dia (ver Tile em /play)
+  const sp = (k: "mon" | "sub" | "boss") => spawn(slug, lvl, k, dungeon);
   const [e, ...q] = dungeon
-    ? [await sp(false), await sp(false), await sp(false), await sp(true)]
-    : [await sp(false)];
+    ? [await sp("mon"), await sp("sub"), await sp("mon"), await sp("boss")]
+    : [await sp("mon")]; // Reino: monstro, sub-chefe, monstro, chefe (mais forte que a caçada normal)
+  const realmName = REALMS[slug]?.name ?? "Reino";
   const state: BState = {
     e,
     q,
@@ -69,7 +80,9 @@ export async function startBattle(fd: FormData) {
     buf: 0,
     cu: 0,
     sv: null,
-    log: [`${dungeon ? "🌀 Onda 1: " : ""}${e.n} (Nv. ${e.L}) apareceu!`],
+    log: dungeon
+      ? [`🏰 Você entra no ${realmName}!`, `🏁 Etapa 1: ${e.n} (Nv. ${e.L})`]
+      : [`${e.n} (Nv. ${e.L}) apareceu!`],
     over: null,
     res: [],
   };
@@ -137,13 +150,25 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       b.wave++;
       b.over = null;
       b.t = 0;
-      b.log = [`🌀 Onda ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
+      b.log = [`🏁 Etapa ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
     }
   } else {
-    if (act.a === "potion") { // gasta 1 poção do estoque; sem estoque, avisa e não perde o turno
-      const nm = act.k === "ea" ? CONS.ea.name : CONS.hp.name, { row } = await stack(cid, nm);
-      if (!row || row.quantity < 1) { b.log.push(`Você não tem ${nm}. Compre na Loja de Conveniência.`); await db.update(battles).set({ state: b }).where(eq(battles.characterId, cid)); return; }
-      await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
+    if (act.a === "potion") {
+      // gasta 1 poção do estoque; sem estoque, avisa e não perde o turno
+      const nm = act.k === "ea" ? CONS.ea.name : CONS.hp.name,
+        { row } = await stack(cid, nm);
+      if (!row || row.quantity < 1) {
+        b.log.push(`Você não tem ${nm}. Compre na Loja de Conveniência.`);
+        await db
+          .update(battles)
+          .set({ state: b })
+          .where(eq(battles.characterId, cid));
+        return;
+      }
+      await db
+        .update(inventory)
+        .set({ quantity: row.quantity - 1 })
+        .where(eq(inventory.id, row.id));
     }
     const before = b.over,
       used0 = b.domUsed;
@@ -215,7 +240,9 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         await addMat(cid, z, n);
         b.res.push(`+${n}× elemento Z=${z}`);
       }
-      if (b.over === "win" && b.dungeon) { await track(cid, "portal", b.mapSlug);
+      if (b.over === "win" && b.dungeon) {
+        b.res.push(`🏰 ${REALMS[b.mapSlug]?.name ?? "Reino"} concluído!`);
+        await track(cid, "portal", b.mapSlug);
         for (let i = 0; i < 2; i++) {
           const z = pk(w.dg),
             n = rn(1, 3);

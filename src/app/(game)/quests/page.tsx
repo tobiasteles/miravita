@@ -208,7 +208,7 @@ export default async function Quests() {
                   🎯{" "}
                   {q.obj.t === "kill"
                     ? `Derrote ${q.obj.n} monstros`
-                    : `Conclua ${q.obj.n} Portal${q.obj.n > 1 ? "is" : ""}`}{" "}
+                    : `Conclua ${q.obj.n} Reino${q.obj.n > 1 ? "s" : ""}`}{" "}
                   em <b>{MAPN[q.obj.slug]}</b>{" "}
                   <span className="text-violet-300">
                     ({v}/{q.obj.n})

@@ -7,6 +7,12 @@ import { getActiveCharacter } from "@/lib/session";
 import { computeItem } from "@/lib/game/item-stats";
 import { GATE, gearPrice } from "@/lib/game/shop";
 import { CONS, price, addCons, type ConsKey } from "@/lib/consumables";
+import {
+  computeEquip,
+  EQUIP_NAMES,
+  SLOT_KEYS,
+  type SlotKey,
+} from "@/lib/game/equipment";
 
 export async function buyConsumable(fd: FormData) {
   const a = await getActiveCharacter();
@@ -24,31 +30,29 @@ export async function buyConsumable(fd: FormData) {
   revalidatePath("/shop/conveniencia");
 }
 export async function buyGear(fd: FormData) {
-  // compra e já equipa (substitui o item atual do mesmo tipo)
+  // compra e já equipa (substitui o item atual da mesma peça)
   const a = await getActiveCharacter();
   if (!a) return;
   const z = Number(fd.get("z")),
-    kind = fd.get("kind") === "arma" ? "arma" : "armadura";
+    slot = String(fd.get("slot")) as SlotKey;
+  if (!SLOT_KEYS.includes(slot)) return;
   const [el] = await db
     .select()
     .from(elements)
     .where(eq(elements.atomicNumber, z));
   if (!el) return;
   const s = computeItem(el),
+    stats = computeEquip(slot, s),
     cost = gearPrice(s.value);
   if (a.c.level < GATE[s.rarity] || Number(a.c.gold) < cost) return;
   const [ni] = await db
     .insert(items)
     .values({
       elementAtomicNumber: z,
-      name: `${kind === "arma" ? "Lâmina" : "Armadura"} de ${el.name}`,
-      type: kind,
+      name: `${EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`,
+      type: slot,
       rarity: s.rarity,
-      stats: {
-        atk: kind === "arma" ? s.atk : 0,
-        def: kind === "armadura" ? s.def : 0,
-        durability: s.durability,
-      },
+      stats,
       value: s.value * 3,
     })
     .returning({ id: items.id });
@@ -60,7 +64,7 @@ export async function buyGear(fd: FormData) {
       and(
         eq(inventory.characterId, a.c.id),
         eq(inventory.equipped, true),
-        eq(items.type, kind),
+        eq(items.type, slot),
       ),
     );
   for (const o of old)
@@ -74,12 +78,11 @@ export async function buyGear(fd: FormData) {
       characterId: a.c.id,
       itemId: ni.id,
       equipped: true,
-      currentDurability: s.durability,
+      currentDurability: stats.durability,
     });
   await db
     .update(characters)
     .set({ gold: Number(a.c.gold) - cost })
     .where(eq(characters.id, a.c.id));
-  revalidatePath("/shop/armas");
-  revalidatePath("/shop/armaduras");
+  revalidatePath("/shop/equipamentos");
 }

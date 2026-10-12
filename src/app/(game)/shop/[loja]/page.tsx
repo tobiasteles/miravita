@@ -6,6 +6,7 @@ import { getActiveCharacter } from "@/lib/session";
 import { computeItem } from "@/lib/game/item-stats";
 import { GATE, gearPrice } from "@/lib/game/shop";
 import { CONS, price, stack, type ConsKey } from "@/lib/consumables";
+import { computeEquip, EQUIP_NAMES, SLOTS } from "@/lib/game/equipment";
 import { buyConsumable, buyGear } from "@/actions/shop";
 import SafeImg from "@/components/game/SafeImg";
 
@@ -21,8 +22,10 @@ const fmt = (n: number) => n.toLocaleString("pt-BR");
 
 export default async function Shop({
   params,
+  searchParams,
 }: {
   params: Promise<{ loja: string }>;
+  searchParams: Promise<{ peca?: string }>;
 }) {
   const { loja } = await params;
   const a = await getActiveCharacter();
@@ -88,22 +91,35 @@ export default async function Shop({
     );
   }
 
-  if (loja === "armas" || loja === "armaduras") {
-    const kind = loja === "armas" ? "arma" : "armadura",
-      els = await db.select().from(elements);
+  if (loja === "equipamentos") {
+    const peca = (await searchParams).peca ?? "arma",
+      slot = SLOTS.find((s) => s.key === peca) ?? SLOTS[0];
+    const els = await db.select().from(elements);
     const list = els
       .map((e) => {
-        const s = computeItem(e);
-        return { e, s, p: gearPrice(s.value), gate: GATE[s.rarity] };
+        const s = computeItem(e),
+          stats = computeEquip(slot.key, s);
+        return { e, s, stats, p: gearPrice(s.value), gate: GATE[s.rarity] };
       })
       .sort((x, y) => x.s.score - y.s.score);
     return (
       <main className="mx-auto max-w-2xl space-y-2 p-4">
         {head(
-          kind === "arma" ? "⚔️ Vendedor de Armas" : "🛡️ Vendedor de Armaduras",
-          "Ao comprar, o item é equipado e substitui o atual",
+          "🛠️ Ferreiro — Equipamentos",
+          "Ao comprar, a peça é equipada e substitui a atual",
         )}
-        {list.map(({ e, s, p, gate }) => {
+        <div className="flex flex-wrap gap-1">
+          {SLOTS.map((s) => (
+            <Link
+              key={s.key}
+              href={`/shop/equipamentos?peca=${s.key}`}
+              className={`rounded-full border px-3 py-1 text-sm transition-colors duration-200 ${slot.key === s.key ? "border-cyan-400 bg-cyan-950/40" : "border-violet-800 hover:bg-violet-900/40"}`}
+            >
+              {s.icon} {EQUIP_NAMES[c.classKey][s.key]}
+            </Link>
+          ))}
+        </div>
+        {list.map(({ e, s, stats, p, gate }) => {
           const ok = c.level >= gate;
           return (
             <form
@@ -112,23 +128,30 @@ export default async function Shop({
               className={`${card} ${ok ? "" : "opacity-50"}`}
             >
               <input type="hidden" name="z" value={e.atomicNumber} />
-              <input type="hidden" name="kind" value={kind} />
+              <input type="hidden" name="slot" value={slot.key} />
               <SafeImg
-                src={`/items/${kind === "arma" ? "blade" : "armor"}-${e.symbol.toLowerCase()}.png`}
+                src={`/items/${slot.prefix}-${e.symbol.toLowerCase()}.png`}
                 className="h-12 w-12 rounded bg-violet-950 object-contain"
                 fallback={
                   <span className="grid h-12 w-12 place-items-center text-3xl">
-                    {kind === "arma" ? "⚔️" : "🛡️"}
+                    {slot.icon}
                   </span>
                 }
               />
               <div className="min-w-0 flex-1">
                 <b className={RC[s.rarity]}>
-                  {kind === "arma" ? "Lâmina" : "Armadura"} de {e.name}
+                  {EQUIP_NAMES[c.classKey][slot.key]} de {e.name}
                 </b>
                 <div className="text-xs text-violet-300">
-                  {kind === "arma" ? `ATK +${s.atk}` : `DEF +${s.def}`} · Dur{" "}
-                  {s.durability} · {s.rarity} · a partir do Nv. {gate}
+                  {[
+                    stats.atk ? `ATK+${stats.atk}` : "",
+                    stats.def ? `DEF+${stats.def}` : "",
+                    stats.hp ? `HP+${stats.hp}` : "",
+                    stats.crit ? `CRIT+${stats.crit}%` : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}{" "}
+                  · {s.rarity} · a partir do Nv. {gate}
                 </div>
               </div>
               <span className="text-amber-300">{fmt(p)}g</span>

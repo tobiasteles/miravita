@@ -5,12 +5,21 @@ import { db } from "@/db";
 import { inventory, items, elements } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { computeItem } from "@/lib/game/item-stats";
+import {
+  computeEquip,
+  EQUIP_NAMES,
+  SLOT_KEYS,
+  type SlotKey,
+} from "@/lib/game/equipment";
+
 export async function forge(fd: FormData) {
+  // bancada de forja: 5 unidades de um elemento viram 1 peça de equipamento (a peça já sai equipada)
   const a = await getActiveCharacter();
   if (!a) return;
   const cid = a.c.id,
     z = Number(fd.get("z")),
-    kind = fd.get("kind") === "arma" ? "arma" : "armadura";
+    slot = String(fd.get("slot")) as SlotKey;
+  if (!SLOT_KEYS.includes(slot)) return;
   const [m] = await db
     .select({ inv: inventory })
     .from(inventory)
@@ -27,7 +36,10 @@ export async function forge(fd: FormData) {
     .select()
     .from(elements)
     .where(eq(elements.atomicNumber, z));
-  const s = computeItem(el);
+  if (!el) return;
+  const s = computeItem(el),
+    stats = computeEquip(slot, s),
+    name = `${EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`;
   await db
     .update(inventory)
     .set({ quantity: m.inv.quantity - 5 })
@@ -36,14 +48,10 @@ export async function forge(fd: FormData) {
     .insert(items)
     .values({
       elementAtomicNumber: z,
-      name: `${kind === "arma" ? "Lâmina" : "Armadura"} de ${el.name}`,
-      type: kind,
+      name,
+      type: slot,
       rarity: s.rarity,
-      stats: {
-        atk: kind === "arma" ? s.atk : 0,
-        def: kind === "armadura" ? s.def : 0,
-        durability: s.durability,
-      },
+      stats,
       value: s.value * 3,
     })
     .returning({ id: items.id });
@@ -55,7 +63,7 @@ export async function forge(fd: FormData) {
       and(
         eq(inventory.characterId, cid),
         eq(inventory.equipped, true),
-        eq(items.type, kind),
+        eq(items.type, slot),
       ),
     );
   for (const o of old)
@@ -69,7 +77,42 @@ export async function forge(fd: FormData) {
       characterId: cid,
       itemId: ni.id,
       equipped: true,
-      currentDurability: s.durability,
+      currentDurability: stats.durability,
     });
+  revalidatePath("/inventory");
+}
+export async function toggleEquip(fd: FormData) {
+  // equipar troca a peça do mesmo tipo; desequipar só tira
+  const a = await getActiveCharacter();
+  if (!a) return;
+  const id = String(fd.get("id"));
+  const [row] = await db
+    .select({ inv: inventory, type: items.type })
+    .from(inventory)
+    .innerJoin(items, eq(inventory.itemId, items.id))
+    .where(and(eq(inventory.id, id), eq(inventory.characterId, a.c.id)));
+  if (!row) return;
+  if (!row.inv.equipped) {
+    const old = await db
+      .select({ id: inventory.id })
+      .from(inventory)
+      .innerJoin(items, eq(inventory.itemId, items.id))
+      .where(
+        and(
+          eq(inventory.characterId, a.c.id),
+          eq(inventory.equipped, true),
+          eq(items.type, row.type),
+        ),
+      );
+    for (const o of old)
+      await db
+        .update(inventory)
+        .set({ equipped: false })
+        .where(eq(inventory.id, o.id));
+  }
+  await db
+    .update(inventory)
+    .set({ equipped: !row.inv.equipped })
+    .where(eq(inventory.id, id));
   revalidatePath("/inventory");
 }

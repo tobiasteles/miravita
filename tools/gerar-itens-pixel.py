@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Desenha os ícones de itens do Miravita em pixel art (32x32), sem gastar créditos de IA.
-Gera em public/items/: mat-<símbolo>, blade-<símbolo>, armor-<símbolo> para os 14 elementos, mais potion e teleport-stone.
+Gera em public/items/: mat-, blade-, armor-, helm-, boots-, gauntlets- <símbolo> para os 14 elementos (5 peças de equipamento + material), mais potion e teleport-stone.
 Uso (na raiz do projeto):  python tools/gerar-itens-pixel.py [--previa]      (precisa de: pip install pillow)
 --previa  também salva previa-itens.png (todos os ícones ampliados) para você conferir."""
 import math, sys, pathlib
@@ -50,6 +50,25 @@ def armadura(c):
     im, d = novo(); c = rgb(c)
     d.polygon([(5, 9), (12, 6), (20, 6), (27, 9), (28, 15), (24, 16), (23, 27), (9, 27), (8, 16), (4, 15)], fill=sh(c, 1), outline=OUTLINE)
     d.polygon([(12, 6), (16, 11), (20, 6)], fill=OUTLINE); d.line((16, 12, 16, 26), fill=sh(c, 1.5)); d.rectangle((9, 21, 22, 23), fill=sh(c, .6)); d.polygon([(5, 10), (11, 8), (9, 14), (5, 14)], fill=sh(c, 1.3)); d.polygon([(27, 10), (21, 8), (23, 14), (27, 14)], fill=sh(c, .75)); return im, d
+def elmo(c):
+    im, d = novo(); c = rgb(c)
+    d.polygon([(9, 15), (10, 9), (16, 5), (22, 9), (23, 15), (23, 19), (9, 19)], fill=sh(c, 1), outline=OUTLINE)
+    d.polygon([(10, 9), (16, 6), (16, 14), (10, 15)], fill=sh(c, 1.4))
+    d.rectangle((9, 19, 23, 21), fill=sh(c, .7), outline=OUTLINE); d.rectangle((13, 15, 19, 18), fill=(23, 20, 51, 230))
+    d.line((16, 5, 16, 3), fill=sh(c, 1.5)); d.polygon([(14, 3), (18, 3), (16, 0)], fill=(251, 191, 36, 255), outline=OUTLINE); return im, d
+def botas(c):
+    im, d = novo(); c = rgb(c)
+    for dx in (0, 11):
+        d.polygon([(7 + dx, 6), (13 + dx, 6), (13 + dx, 20), (16 + dx, 24), (16 + dx, 27), (5 + dx, 27), (5 + dx, 21), (7 + dx, 20)], fill=sh(c, 1), outline=OUTLINE)
+        d.rectangle((5 + dx, 24, 16 + dx, 27), fill=sh(c, .6), outline=OUTLINE); d.line((7 + dx, 9, 13 + dx, 9), fill=sh(c, 1.6)); d.line((7 + dx, 13, 13 + dx, 13), fill=sh(c, 1.6))
+    return im, d
+def manoplas(c):
+    im, d = novo(); c = rgb(c)
+    for dx in (0, 15):
+        d.polygon([(4 + dx, 14), (12 + dx, 11), (14 + dx, 16), (13 + dx, 26), (5 + dx, 27), (3 + dx, 19)], fill=sh(c, 1), outline=OUTLINE)
+        for k in range(3): d.line((5 + dx + k * 3, 16, 5 + dx + k * 3, 24), fill=sh(c, .6))
+        d.polygon([(9 + dx, 9), (13 + dx, 11), (10 + dx, 14), (7 + dx, 12)], fill=sh(c, 1.4), outline=OUTLINE)
+    return im, d
 def pocao():
     im, d = novo(); d.rectangle((13, 4, 18, 7), fill=(139, 94, 60, 255), outline=OUTLINE); d.rectangle((14, 8, 17, 12), fill=(200, 230, 245, 220), outline=OUTLINE)
     d.ellipse((7, 11, 24, 28), fill=(200, 230, 245, 220), outline=OUTLINE); d.chord((9, 16, 22, 27), 0, 180, fill=(239, 68, 68, 255)); d.rectangle((9, 21, 22, 25), fill=(239, 68, 68, 255)); d.line((11, 14, 11, 17), fill=(255, 255, 255, 255)); d.point((13, 22), fill=(252, 165, 165, 255)); return im, d
@@ -60,7 +79,7 @@ def pedra():
 def salvar(im, nome): OUT.mkdir(parents=True, exist_ok=True); im.save(OUT / f"{nome}.png"); return nome
 feitos = []
 for s, (c, r) in EL.items():
-    for pre, fn in (("mat", lambda: material(s, c)), ("blade", lambda: lamina(c)), ("armor", lambda: armadura(c))):
+    for pre, fn in (("mat", lambda: material(s, c)), ("blade", lambda: lamina(c)), ("armor", lambda: armadura(c)), ("helm", lambda: elmo(c)), ("boots", lambda: botas(c)), ("gauntlets", lambda: manoplas(c))):
         im, d = fn(); brilho(im, d, r); feitos.append(salvar(im, f"{pre}-{s}"))
 im, d = pocao(); brilho(im, d, "comum"); feitos.append(salvar(im, "potion")); im, d = pedra(); brilho(im, d, "raro"); feitos.append(salvar(im, "teleport-stone"))
 print(len(feitos), "ícones gerados em", OUT)

@@ -8,6 +8,9 @@ import SafeImg from "@/components/game/SafeImg";
 import Tile from "@/components/game/Tile";
 import { HotkeyBar } from "@/components/game/Hotkeys";
 import { Logo, ClassSeal } from "@/components/brand/Brand";
+import { REALMS } from "@/lib/game/realms";
+import { realmStatus } from "@/lib/game/realm-schedule";
+import RealmCountdown from "@/components/game/RealmCountdown";
 
 const fmt = (n: number) => n.toLocaleString("pt-BR");
 
@@ -15,7 +18,8 @@ export default async function Play() {
   const a = await getActiveCharacter();
   if (!a) redirect("/characters");
   const { c, map } = a;
-  const pct = Math.min(100, (Number(c.xp) / xpToNext(c.level)) * 100);
+  const pct = Math.min(100, (Number(c.xp) / xpToNext(c.level)) * 100),
+    rs = map ? realmStatus(map.slug) : null;
   return (
     <main className="mx-auto max-w-6xl space-y-4 p-4 lg:p-6">
       <Logo size={36} />
@@ -23,18 +27,11 @@ export default async function Play() {
         {/* ----- comércio ----- */}
         <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2 lg:grid-cols-1">
           <Tile
-            icon="⚔️"
-            title="Vendedor de Armas"
-            sub="Lâminas forjadas de cada elemento"
-            href="/shop/armas"
+            icon="🛠️"
+            title="Ferreiro"
+            sub="5 peças de equipamento por elemento"
+            href="/shop/equipamentos"
             accent="red"
-          />
-          <Tile
-            icon="🛡️"
-            title="Vendedor de Armaduras"
-            sub="Peitorais e proteções"
-            href="/shop/armaduras"
-            accent="sky"
           />
           <Tile
             icon="👘"
@@ -161,14 +158,35 @@ export default async function Play() {
             fields={{ kind: "hunt" }}
             accent="red"
           />
-          <Tile
-            icon="🌀"
-            title="Portal"
-            sub="Calabouço de 4 ondas com chefe"
-            action={startBattle}
-            fields={{ kind: "dungeon" }}
-            accent="violet"
-          />
+          <div className="relative">
+            <Tile
+              icon="🏰"
+              title={map ? (REALMS[map.slug]?.name ?? "Reino") : "Reino"}
+              sub={
+                rs?.open
+                  ? "Aberto agora: 4 etapas, cenário próprio e mais difícil"
+                  : "Fechado · abre em um horário aleatório do dia"
+              }
+              action={startBattle}
+              fields={{ kind: "dungeon" }}
+              accent="violet"
+              disabled={!rs?.open}
+            />
+            <div className="pointer-events-none absolute bottom-1.5 right-3 text-[11px]">
+              {rs &&
+                (rs.open ? (
+                  <RealmCountdown
+                    target={rs.closesAt.toISOString()}
+                    label="fecha em"
+                  />
+                ) : (
+                  <RealmCountdown
+                    target={rs.opensAt.toISOString()}
+                    label="abre em"
+                  />
+                ))}
+            </div>
+          </div>
         </div>
       </div>
     </main>

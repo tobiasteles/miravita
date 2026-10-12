@@ -1,0 +1,243 @@
+import { monsterXp } from "./xp";
+import type { Mon } from "./battle";
+
+// ───── BESTIÁRIO: 120 monstros comuns (20 por mapa, de nível crescente) + 18 sub-chefes + 12 chefes de Portal ─────
+// Os nomes viram o nome do arquivo de imagem em public/monsters/<nome-em-slug>.png (sem acento, minúsculas, hífens).
+export type Kind = "mon" | "sub" | "boss";
+export const BESTIARY: Record<
+  string,
+  { lo: number; hi: number; mons: string[]; sub: string[]; boss: string[] }
+> = {
+  "planicie-de-aurora": {
+    lo: 1,
+    hi: 9,
+    mons: [
+      "Slime de Cinza",
+      "Coelho Rúnico",
+      "Goblin Remendado",
+      "Rato das Ruínas",
+      "Corvo de Bruma",
+      "Besouro de Bronze",
+      "Lobo da Campina",
+      "Espantalho Vivo",
+      "Cobra de Pradaria",
+      "Javali de Aurora",
+      "Raposa Estelar",
+      "Gnomo Saqueador",
+      "Abelha Gigante",
+      "Urso Musgoso",
+      "Bandido da Fenda",
+      "Cervo Espectral",
+      "Guardião de Palha",
+      "Falcão do Alvorecer",
+      "Troll da Colina",
+      "Lobo Alfa da Planície",
+    ],
+    sub: ["Rei Goblin Remendado", "Javali Matriarca", "Cavaleiro Espantalho"],
+    boss: ["Guardião da Primeira Fenda", "Quimera de Aurora"],
+  },
+  "floresta-sussurrante": {
+    lo: 10,
+    hi: 29,
+    mons: [
+      "Lobo das Raízes",
+      "Dríade Sombria",
+      "Javali Fóssil",
+      "Cogumelo Furioso",
+      "Aranha Tecelã",
+      "Coruja Silente",
+      "Lobisomem Novato",
+      "Ent Jovem",
+      "Fada Sombria",
+      "Cobra de Espinhos",
+      "Vespa Esmeralda",
+      "Raposa de Duas Caudas",
+      "Morcego Sanguessuga",
+      "Cervo Corrompido",
+      "Urso de Casca",
+      "Bruxa da Mata",
+      "Centauro Arqueiro",
+      "Hidra de Cipó",
+      "Gigante Lenhador",
+      "Lobo Espectral das Raízes",
+    ],
+    sub: ["Aranha Rainha", "Ent Ancião", "Alcateia Maldita"],
+    boss: ["Guardião da Floresta Sussurrante", "Lobisomem Soberano"],
+  },
+  "deserto-cinzento": {
+    lo: 30,
+    hi: 59,
+    mons: [
+      "Escorpião de Vidro",
+      "Múmia Rúnica",
+      "Golem de Areia",
+      "Cobra do Deserto",
+      "Abutre de Cinzas",
+      "Chacal Espectral",
+      "Lagarto de Pedra",
+      "Escaravelho Gigante",
+      "Sacerdote Perdido",
+      "Naja Dourada",
+      "Esfinge Menor",
+      "Verme das Dunas",
+      "Bandido do Deserto",
+      "Elemental de Poeira",
+      "Camelo Zumbi",
+      "Ghoul das Areias",
+      "Cultista das Runas",
+      "Gárgula de Arenito",
+      "Faraó Menor",
+      "Djinn Cinzento",
+    ],
+    sub: ["Rei Escorpião", "Sacerdote Múmia Real", "Colosso de Areia"],
+    boss: ["Esfinge do Enigma Perdido", "Verme Soberano das Dunas"],
+  },
+  "montanha-de-ferro": {
+    lo: 60,
+    hi: 99,
+    mons: [
+      "Troll Basáltico",
+      "Harpia de Aço",
+      "Gárgula de Cristal",
+      "Cabra de Ferro",
+      "Kobold Mineiro",
+      "Golem de Minério",
+      "Lobo de Aço",
+      "Águia Trovejante",
+      "Anão Corrompido",
+      "Wyvern Jovem",
+      "Ogro de Rocha",
+      "Elemental de Magma",
+      "Besouro de Ferro",
+      "Yeti das Geadas",
+      "Basilisco de Pedra",
+      "Cavaleiro Enferrujado",
+      "Autômato de Forja",
+      "Gigante de Pedra",
+      "Quimera de Rocha",
+      "Dragonete de Brasa",
+    ],
+    sub: ["Capataz Ogro", "Golem de Forja Maior", "Wyvern Anciã"],
+    boss: ["Dragão de Ferro", "Rei da Montanha"],
+  },
+  "pantano-radioativo": {
+    lo: 100,
+    hi: 149,
+    mons: [
+      "Hidra Tóxica",
+      "Sapo Radiante",
+      "Espectro da Névoa",
+      "Sanguessuga Gigante",
+      "Crocodilo Venenoso",
+      "Bruxa do Brejo",
+      "Zumbi do Lodo",
+      "Libélula Venenosa",
+      "Planta Carnívora",
+      "Lagarto Sombrio",
+      "Fogo-Fátuo",
+      "Naga Pantaneira",
+      "Aranha de Névoa",
+      "Troll do Lodo",
+      "Corvo Pútrido",
+      "Lich Menor",
+      "Basilisco do Brejo",
+      "Mosquito Gigante",
+      "Golem de Lama",
+      "Banshee",
+    ],
+    sub: ["Rainha Naga", "Lich do Pântano", "Hidra Dupla"],
+    boss: ["Hidra Ancestral", "Senhor do Lodo"],
+  },
+  "abismo-do-cacador": {
+    lo: 150,
+    hi: 200,
+    mons: [
+      "Sombra Soberana",
+      "Cavaleiro do Vazio",
+      "Ceifador de Portais",
+      "Observador do Vazio",
+      "Cão do Abismo",
+      "Demônio Menor",
+      "Espectro Cristalino",
+      "Serpente das Trevas",
+      "Guerreiro Caído",
+      "Vampiro Antigo",
+      "Golem Obsidiana",
+      "Mago do Vazio",
+      "Sentinela Abissal",
+      "Besta Sombria",
+      "Anjo Corrompido",
+      "Devorador de Portais",
+      "Lâmina Fantasma",
+      "Colosso do Vazio",
+      "Arconte Negro",
+      "Titã Caído",
+    ],
+    sub: ["Ceifador Chefe", "General Demônio", "Arquimago Sombrio"],
+    boss: ["Soberano Ignotus", "Dragão do Vazio"],
+  },
+};
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+const levelsOf = (slug: string) => {
+  const m = BESTIARY[slug];
+  return m.mons.map((n, i) => ({
+    n,
+    lv: m.lo + Math.round((i * (m.hi - m.lo)) / (m.mons.length - 1)),
+  }));
+};
+
+// stats por nível: comum x1 · sub-chefe (⭐) vida x2,2, ataque x1,25, XP x3 · chefe (👑) vida x4, ataque x1,5, XP x6
+export function mkMonster(name: string, L: number, kind: Kind): Mon {
+  const k =
+    kind === "boss"
+      ? { hp: 4, atk: 1.5, xp: 6, pre: "👑 " }
+      : kind === "sub"
+        ? { hp: 2.2, atk: 1.25, xp: 3, pre: "⭐ " }
+        : { hp: 1, atk: 1, xp: 1, pre: "" };
+  const hp = Math.round((40 + 10 * L ** 1.3) * k.hp);
+  return {
+    n: k.pre + name,
+    L,
+    hp,
+    mx: hp,
+    atk: Math.round((5 + 3.5 * L) * k.atk),
+    def: Math.round(2 + 0.5 * L),
+    xp: monsterXp(L) * k.xp,
+    boss: kind !== "mon",
+  };
+}
+// escolhe o monstro do mapa cujo nível está perto do jogador (janela de níveis proporcional ao tamanho do mapa); se nenhum, o mais próximo
+export function pickMonster(slug: string, pl: number) {
+  const m = BESTIARY[slug],
+    span = m.hi - m.lo,
+    below = Math.max(8, Math.round(span / 4)),
+    above = Math.max(3, Math.round(span / 8)); // mapas grandes têm janela maior
+  const list = levelsOf(slug),
+    near = list.filter((x) => x.lv >= pl - below && x.lv <= pl + above);
+  const pool = near.length
+    ? near
+    : [
+        list.reduce((a, b) =>
+          Math.abs(b.lv - pl) < Math.abs(a.lv - pl) ? b : a,
+        ),
+      ];
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+// aplica a dificuldade extra do Reino (além dos multiplicadores de sub-chefe/chefe)
+export function temper(m: Mon, hpMul: number, atkMul: number): Mon {
+  const hp = Math.round(m.hp * hpMul);
+  return { ...m, hp, mx: hp, atk: Math.round(m.atk * atkMul) };
+}
+export function spawnFor(slug: string, pl: number, kind: Kind): Mon {
+  const m = BESTIARY[slug];
+  if (kind === "mon") {
+    const x = pickMonster(slug, pl);
+    return mkMonster(x.n, x.lv, "mon");
+  }
+  const list = kind === "sub" ? m.sub : m.boss;
+  return mkMonster(
+    list[Math.floor(Math.random() * list.length)],
+    clamp(pl + (kind === "sub" ? 2 : 5), m.lo, 200),
+    kind,
+  );
+}
