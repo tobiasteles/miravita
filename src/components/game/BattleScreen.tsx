@@ -13,6 +13,10 @@ const SPEED = 1.9; // varreduras por segundo (maior = mais rápido)
 const PERFECT = 0.08; // meia-largura da faixa dourada (acerto perfeito = crítico garantido, x2)
 const GOOD = 0.2; // meia-largura da faixa verde (bom acerto, x1,4)
 const HOLD = 650; // ms que a barra fica TRAVADA mostrando o resultado, antes de atacar
+// ───── fundo da batalha (caçada e Reino): deixa a arte mais apagada para os monstros e a interface ficarem em destaque ─────
+const BG_FILTER = "saturate(.6) brightness(.62) blur(1px)"; // menos saturação/brilho = chama menos atenção (ex.: .8 e .8 para um fundo mais vivo)
+const BG_VIGNETTE =
+  "radial-gradient(ellipse at 50% 58%, rgba(8,6,24,.10) 0%, rgba(8,6,24,.55) 100%)"; // escurece as bordas
 type P = {
   av: string;
   cls: string;
@@ -182,9 +186,26 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
       <div
         className="relative h-80 overflow-hidden rounded-xl border-4 border-slate-700"
         style={{
-          background: `${bg(b.dungeon ? `/realms/${b.mapSlug}` : `/maps/${b.mapSlug}`, "center/cover")}, linear-gradient(${sky} 0 52%, ${ground} 52% 100%)`,
+          background: `linear-gradient(${sky} 0 52%, ${ground} 52% 100%)`,
         }}
       >
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{
+            background: bg(
+              b.dungeon ? `/realms/${b.mapSlug}` : `/maps/${b.mapSlug}`,
+              "center/cover",
+            ),
+            filter: BG_FILTER,
+            transform: "scale(1.03)",
+          }}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0"
+          style={{ background: BG_VIGNETTE }}
+        />
         {b.dungeon && RM && (
           <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 to-transparent px-3 py-1.5 text-center">
             <span className="font-mono text-xs font-bold tracking-widest text-amber-300">
