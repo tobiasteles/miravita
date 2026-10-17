@@ -8,7 +8,9 @@
 
 ## Deploy na Vercel
 Suba para o GitHub, importe na Vercel e cadastre as 5 variáveis do `.env.example` em Settings → Environment Variables.
-No painel do Clerk, adicione o domínio da Vercel. Rode `db:push` e `db:seed` uma vez apontando para o banco de produção.
+Para produção em `miravita-three.vercel.app`, o SDK detecta o host da Vercel e usa o auto-proxy na URL de origem do app `https://miravita-three.vercel.app/__clerk`; o middleware roteia esse caminho sem exigir autenticação. Mantenha as variáveis automáticas de produção da Vercel e não defina um `domain` ou `proxyUrl` explícito no Clerk; não configure registros DNS para `vercel.app`.
+No ambiente Production da Vercel, use as chaves live do Clerk (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` com `pk_live_...` e `CLERK_SECRET_KEY` com `sk_live_...`) e faça um novo deploy após alterá-las. Os componentes de entrada usam os fluxos de e-mail habilitados no Clerk; códigos de verificação e de redefinição de senha podem usar a infraestrutura compartilhada `accounts.dev`. Para uma experiência totalmente com marca, modelos de e-mail personalizados, autenticação por link e convites por e-mail/organização, prefira um domínio próprio.
+Rode `db:push` e `db:seed` uma vez apontando para o banco de produção.
 
 ## Já incluído
 Schema completo, auth (Clerk), criação/seleção/exclusão de até 6 personagens (limite atômico), traços e avatares por classe,

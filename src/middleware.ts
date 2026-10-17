@@ -4,13 +4,13 @@ const priv = createRouteMatcher([
   "/play(.*)",
   "/api/chat(.*)",
   "/admin(.*)",
-  "/__clerk/:path*",
 ]);
 export default clerkMiddleware(async (auth, req) => {
   if (priv(req)) await auth.protect();
 });
 export const config = {
   matcher: [
+    "/__clerk/:path*",
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
   ],
