@@ -260,3 +260,441 @@ html[data-busy] summary {
 html[data-busy] form button {
   opacity: 0.65;
 }
+
+/* ═════════ CIDADE INTERATIVA (estilo DDTank) ═════════ */
+.town {
+  position: relative;
+  aspect-ratio: 16/10;
+  width: 100%;
+  border-radius: 1rem;
+  border: 2px solid #7c3aed66;
+  box-shadow: 0 10px 40px #000a;
+}
+.town-bg {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+}
+.town-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 45%, transparent 55%, #0007 100%);
+}
+.town-title {
+  position: absolute;
+  left: 12px;
+  top: 8px;
+  z-index: 5;
+  font-weight: 800;
+  font-size: clamp(10px, 1.4vw, 16px);
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #0c0a1fcc;
+  border: 1px solid #7c3aed88;
+  pointer-events: none;
+}
+.town-spot {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: none;
+  border-radius: 18px;
+  cursor: pointer;
+  text-align: center;
+  color: inherit;
+  transition:
+    filter 0.25s,
+    background 0.25s,
+    transform 0.25s;
+}
+.town-wrap {
+  position: absolute;
+  display: block;
+  z-index: 2;
+}
+.town-wrap:hover,
+.town-wrap:focus-within {
+  z-index: 20;
+}
+.town-spot:hover,
+.town-spot:focus-visible {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 0 12px var(--glow, #a78bfa));
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--glow, #a78bfa) 30%, transparent),
+    transparent 78%
+  );
+}
+/* enquanto o background ainda não existe: os prédios aparecem como caixas */
+.town-ph {
+  border: 2px dashed color-mix(in srgb, var(--glow, #a78bfa) 75%, transparent);
+  background: color-mix(in srgb, var(--glow, #a78bfa) 14%, #12102c);
+}
+.town-ico {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: clamp(20px, 4vw, 48px);
+  opacity: 0.9;
+}
+.town-soon {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+.town-soon:hover {
+  transform: none;
+  filter: grayscale(0.5);
+}
+/* nome do prédio */
+.town-cap {
+  position: absolute;
+  left: 50%;
+  bottom: -3%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  pointer-events: none;
+  z-index: 3;
+}
+.town-label {
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: clamp(9px, 1.35vw, 16px);
+  color: #fff;
+  letter-spacing: 0.02em;
+  text-shadow:
+    -1px -1px 0 #1b1030,
+    1px -1px 0 #1b1030,
+    -1px 1px 0 #1b1030,
+    1px 1px 0 #1b1030,
+    0 2px 6px #000b;
+  transition:
+    transform 0.25s,
+    color 0.25s;
+}
+.town-label-big {
+  font-size: clamp(11px, 1.8vw, 22px);
+  letter-spacing: 0.05em;
+}
+.town-spot:hover .town-label,
+.town-spot:focus-visible .town-label,
+.pin-btn:not(:disabled):hover .town-label {
+  color: #fde68a;
+  transform: scale(1.08);
+}
+.town-chip {
+  font-size: clamp(8px, 1vw, 12px);
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #0c0a1fe6;
+  border: 1px solid #7c3aedaa;
+  color: #ddd6fe;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.town-chip-red {
+  border-color: #ef4444;
+  color: #fecaca;
+}
+.town-chip-live {
+  border-color: #fbbf24;
+  color: #fde68a;
+  box-shadow: 0 0 12px #fbbf2466;
+}
+.town-live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #34d399;
+  box-shadow: 0 0 8px #34d399;
+  animation: townPulse 1s ease-in-out infinite;
+}
+/* balão do mercador */
+.town-bubble {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  transform: translate(var(--bx, -50%), 6px) scale(0.92);
+  opacity: 0;
+  pointer-events: none;
+  width: max-content;
+  max-width: 230px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  background: #fff;
+  color: #2b2140;
+  border: 2px solid #7c3aed;
+  border-radius: 12px;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.25;
+  box-shadow: 0 6px 18px #0009;
+  transition:
+    opacity 0.2s,
+    transform 0.2s;
+  z-index: 30;
+}
+.town-bubble-down {
+  bottom: auto;
+  top: calc(100% + 1.8em);
+}
+.town-spot:hover .town-bubble,
+.town-spot:focus-visible .town-bubble {
+  opacity: 1;
+  transform: translate(var(--bx, -50%), 0) scale(1);
+}
+@media (hover: none) {
+  .town-bubble {
+    display: none;
+  }
+}
+/* ⚔ CAÇADA: aura vermelha pulsando + espadas flutuando */
+.town-hunt::before {
+  content: "";
+  position: absolute;
+  inset: -8%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, #ef444477, transparent 72%);
+  animation: townPulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+.town-badge {
+  position: absolute;
+  right: 2%;
+  top: -6%;
+  font-size: clamp(18px, 3vw, 38px);
+  filter: drop-shadow(0 0 8px #ef4444);
+  animation: townFloat 1.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+/* 🏰 REINO: portal aberto = aura giratória; fechado = selado */
+.town-realm-fx {
+  position: absolute;
+  inset: -14%;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(12px);
+  background: conic-gradient(
+    from 0deg,
+    #a78bfa00,
+    #a78bfaaa,
+    #fbbf24aa,
+    #22d3ee88,
+    #a78bfa00
+  );
+  animation: townSpin 5s linear infinite;
+}
+.town-realm-open::after {
+  content: "";
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow:
+    0 0 40px 10px #a78bfa88,
+    inset 0 0 30px #fbbf2444;
+  animation: townPulse 2s ease-in-out infinite;
+}
+.town-realm-closed {
+  cursor: not-allowed;
+}
+.town-realm-closed:hover {
+  transform: none;
+  filter: none;
+  background: none;
+}
+.town-realm-closed .town-label {
+  filter: grayscale(0.6);
+  opacity: 0.85;
+}
+@keyframes townPulse {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.65;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 1;
+  }
+}
+@keyframes townFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-8deg);
+  }
+  50% {
+    transform: translateY(-8px) rotate(8deg);
+  }
+}
+@keyframes townSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* mapa-múndi */
+.pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.pin-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+}
+.pin-btn:disabled {
+  cursor: not-allowed;
+}
+.pin-dot {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(30px, 4.6vw, 56px);
+  height: clamp(30px, 4.6vw, 56px);
+  border-radius: 50%;
+  font-size: clamp(14px, 2.2vw, 26px);
+  background: radial-gradient(circle at 35% 30%, #c4b5fd, #6d28d9);
+  border: 3px solid #fff;
+  box-shadow:
+    0 0 0 3px #4c1d95,
+    0 6px 14px #000a;
+  transition: transform 0.2s;
+}
+.pin-btn:not(:disabled):hover .pin-dot {
+  transform: scale(1.18);
+}
+.pin-lock .pin-dot {
+  filter: grayscale(1) brightness(0.7);
+}
+.pin-here .pin-dot {
+  background: radial-gradient(circle at 35% 30%, #fde68a, #d97706);
+  animation: townPulse 1.6s ease-in-out infinite;
+}
+.pin-realm {
+  position: absolute;
+  right: -30%;
+  top: -34%;
+  font-size: clamp(11px, 1.6vw, 20px);
+  animation: townFloat 1.4s ease-in-out infinite;
+}
+/* tela de entrada da luta */
+.battle-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 1rem;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 50%, #7f1d1dd9, #0b0614f5 72%);
+  animation: introOut 0.4s ease-in 1.3s forwards;
+}
+.battle-intro-realm {
+  background: radial-gradient(circle at 50% 50%, #6d28d9d9, #05030ff5 72%);
+  animation-delay: 2.2s;
+}
+.bi-ico {
+  font-size: clamp(56px, 14vw, 110px);
+  animation: introPop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  filter: drop-shadow(0 0 24px #fbbf24);
+}
+.bi-kicker {
+  margin-top: 0.25rem;
+  font-weight: 800;
+  letter-spacing: 0.45em;
+  color: #fca5a5;
+  font-size: clamp(11px, 2.6vw, 16px);
+  animation: introIn 0.5s 0.15s both;
+}
+.battle-intro-realm .bi-kicker {
+  color: #fde68a;
+}
+.bi-title {
+  font-weight: 900;
+  font-size: clamp(26px, 7vw, 52px);
+  color: #fff;
+  text-shadow:
+    0 0 22px #fbbf24aa,
+    0 3px 0 #000;
+  animation: introIn 0.5s 0.3s both;
+}
+.bi-sub {
+  color: #ddd6fe;
+  font-size: clamp(12px, 2.6vw, 16px);
+  animation: introIn 0.5s 0.45s both;
+}
+.bi-foe {
+  margin-top: 0.75rem;
+  display: inline-block;
+  padding: 2px 14px;
+  border-radius: 999px;
+  background: #0008;
+  border: 1px solid #fbbf24;
+  color: #fde68a;
+  font-weight: 700;
+  animation: introIn 0.5s 0.6s both;
+}
+@keyframes introPop {
+  from {
+    transform: scale(0.2) rotate(-25deg);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes introIn {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+@keyframes introOut {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .town-hunt::before,
+  .town-badge,
+  .town-realm-fx,
+  .town-realm-open::after,
+  .town-live,
+  .pin-realm,
+  .pin-here .pin-dot,
+  .bi-ico,
+  .bi-kicker,
+  .bi-title,
+  .bi-sub,
+  .bi-foe {
+    animation: none;
+  }
+}
