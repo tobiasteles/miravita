@@ -27,8 +27,8 @@ export default async function Battle() {
   const P = await loadPlayer(a.c.id),
     cls = P.k.key;
 
-  const ph = { row: { quantity: 0 } };
-  const pe = { row: { quantity: 0 } };
+  const ph = await stack(a.c.id, CONS.hp.name); // estoque real de Poção de HP
+  const pe = await stack(a.c.id, CONS.ea.name); // estoque real de Poção de EA
 
   const st = row.state as BState,
     RM = REALMS[st.mapSlug];

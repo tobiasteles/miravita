@@ -1,3 +1,4 @@
+import type { IconName } from "@/components/game/GameIcon";
 // ───── CIDADE INTERATIVA (estilo DDTank) ─────
 // Coordenadas em % de um quadro 16:10 (1600×1000). TODOS os mapas usam o mesmo layout: só muda o background (public/town/<slug>.png).
 // x,y = centro do prédio · w,h = tamanho da área clicável. Se quiser ajustar um prédio, mexa só aqui.
@@ -5,7 +6,7 @@ export type SpotKind = "link" | "rest" | "hunt" | "realm" | "soon";
 export type Spot = {
   id: string;
   label: string; // texto que aparece sobre o prédio
-  icon: string;
+  icon: IconName;
   merchant: string; // nome do mercador (aparece no balão)
   npc: string; // retrato em public/npcs/<npc>.png (opcional)
   line: string; // fala do mercador
@@ -23,7 +24,7 @@ export const SPOTS: Spot[] = [
   {
     id: "ferreiro",
     label: "Ferreiro",
-    icon: "🛠️",
+    icon: "anvil",
     merchant: "Tobias, o Ferreiro",
     npc: "tobias-ferreiro",
     line: "Armas e armaduras forjadas com os 5 elementos!",
@@ -38,7 +39,7 @@ export const SPOTS: Spot[] = [
   {
     id: "instrutor",
     label: "Academia",
-    icon: "🎓",
+    icon: "book",
     merchant: "Mestre Instrutor",
     npc: "mestre-instrutor",
     line: "Aprenda técnicas de todas as classes.",
@@ -53,7 +54,7 @@ export const SPOTS: Spot[] = [
   {
     id: "reino",
     label: "Portal do Reino",
-    icon: "🏰",
+    icon: "portal",
     merchant: "Guardião do Portal",
     npc: "guardiao-do-portal",
     line: "Só os mais corajosos cruzam o Reino.",
@@ -67,7 +68,7 @@ export const SPOTS: Spot[] = [
   {
     id: "oficial",
     label: "Oficial da Cidade",
-    icon: "📜",
+    icon: "scroll",
     merchant: "Oficial da Cidade",
     npc: "oficial-da-cidade",
     line: "Missões novas todos os dias!",
@@ -82,7 +83,7 @@ export const SPOTS: Spot[] = [
   {
     id: "guilda",
     label: "Guilda",
-    icon: "🏰",
+    icon: "shield",
     merchant: "Mestre da Guilda",
     npc: "mestre-da-guilda",
     line: "Junte-se a aliados e crie grupos.",
@@ -98,7 +99,7 @@ export const SPOTS: Spot[] = [
   {
     id: "conveniencia",
     label: "Conveniência",
-    icon: "🏪",
+    icon: "flask",
     merchant: "Doutor Vex",
     npc: "doutor-vex",
     line: "Poções de HP, EA e pedras de teletransporte.",
@@ -113,7 +114,7 @@ export const SPOTS: Spot[] = [
   {
     id: "trajes",
     label: "Trajes de Batalha",
-    icon: "👘",
+    icon: "tunic",
     merchant: "Brunhilda",
     npc: "brunhilda-joalheira",
     line: "Visuais incríveis chegando em breve.",
@@ -127,7 +128,7 @@ export const SPOTS: Spot[] = [
   {
     id: "arena",
     label: "Arena de Caça",
-    icon: "⚔️",
+    icon: "swords",
     merchant: "Mestre da Arena",
     npc: "mestre-da-arena",
     line: "Monstros de sobra te esperam aqui!",
@@ -142,7 +143,7 @@ export const SPOTS: Spot[] = [
   {
     id: "forja",
     label: "Mochila e Forja",
-    icon: "🎒",
+    icon: "backpack",
     merchant: "Hakim das Relíquias",
     npc: "hakim-reliquias",
     line: "Guarde seus itens e forje equipamentos.",
@@ -157,7 +158,7 @@ export const SPOTS: Spot[] = [
   {
     id: "taverna",
     label: "Taverna",
-    icon: "🍺",
+    icon: "mug",
     merchant: "Dona Brasa",
     npc: "dona-brasa",
     line: "Descanse! Recupera todo o seu HP e EA.",
@@ -171,7 +172,7 @@ export const SPOTS: Spot[] = [
   {
     id: "portoes",
     label: "Portões · Mapa",
-    icon: "💂",
+    icon: "castle",
     merchant: "Capitão dos Guardas",
     npc: "capitao-dos-guardas",
     line: "Para onde vamos viajar hoje?",

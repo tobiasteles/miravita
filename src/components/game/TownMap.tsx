@@ -4,6 +4,7 @@ import { bg, variants } from "@/lib/img";
 import { SPOTS, type Spot } from "@/lib/game/town";
 import { startBattle, rest } from "@/actions/battle";
 import SafeImg from "@/components/game/SafeImg";
+import GameIcon from "@/components/game/GameIcon";
 import RealmCountdown from "@/components/game/RealmCountdown";
 
 export type TownRealm = {
@@ -40,8 +41,8 @@ function Bubble({ s, sub }: { s: Spot; sub?: string }) {
         alt={s.merchant}
         className="h-11 w-11 shrink-0 rounded-full border-2 border-violet-400 bg-violet-950 object-cover"
         fallback={
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-100 text-2xl">
-            {s.icon}
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-violet-100 text-2xl text-violet-700">
+            <GameIcon name={s.icon} />
           </span>
         }
       />
@@ -82,7 +83,11 @@ function SpotView({
   realm: TownRealm;
 }) {
   const base = `town-spot ${ready ? "" : "town-ph"}`;
-  const ico = !ready && <span className="town-ico">{s.icon}</span>;
+  const ico = !ready && (
+    <span className="town-ico">
+      <GameIcon name={s.icon} />
+    </span>
+  );
   const label = `${s.label} — ${s.merchant}`;
 
   if (s.kind === "link")
@@ -96,7 +101,7 @@ function SpotView({
         {ico}
         <Bubble s={s} />
         <Cap>
-          {s.icon} {s.label}
+          <GameIcon name={s.icon} /> {s.label}
         </Cap>
       </Link>
     );
@@ -111,7 +116,7 @@ function SpotView({
         {ico}
         <Bubble s={s} />
         <Cap>
-          {s.icon} {s.label} · em breve
+          <GameIcon name={s.icon} /> {s.label} · em breve
         </Cap>
       </div>
     );
@@ -123,13 +128,13 @@ function SpotView({
           {ico}
           <Bubble s={s} />
           <Cap>
-            {s.icon} {s.label}
+            <GameIcon name={s.icon} /> {s.label}
           </Cap>
         </button>
       </form>
     );
 
-  // ⚔ CAÇADA: destaque vermelho pulsante
+  // CAÇADA: destaque vermelho pulsante
   if (s.kind === "hunt")
     return (
       <form action={startBattle} className="town-wrap" style={pos(s)}>
@@ -139,7 +144,9 @@ function SpotView({
           aria-label={`Caçar monstros em ${mapName}`}
         >
           {ico}
-          <span className="town-badge">⚔️</span>
+          <span className="town-badge">
+            <GameIcon name="swords" />
+          </span>
           <Bubble
             s={s}
             sub={`Enfrentar monstros em ${mapName}. Clique para lutar!`}
@@ -150,13 +157,13 @@ function SpotView({
               <span className="town-chip town-chip-red">Clique para lutar</span>
             }
           >
-            ⚔ CAÇAR MONSTROS
+            <GameIcon name="swords" /> CAÇAR MONSTROS
           </Cap>
         </button>
       </form>
     );
 
-  // 🏰 REINO: portal gigante com aura giratória (aberto) ou selado (fechado)
+  // REINO: portal gigante com aura giratória (aberto) ou selado (fechado)
   const chip = (
     <span className={`town-chip ${realm.open ? "town-chip-live" : ""}`}>
       {realm.open ? (
@@ -166,7 +173,8 @@ function SpotView({
         </>
       ) : (
         <>
-          🔒 <RealmCountdown target={realm.at} label="abre em" />
+          <GameIcon name="lock" />{" "}
+          <RealmCountdown target={realm.at} label="abre em" />
         </>
       )}
     </span>
@@ -184,7 +192,7 @@ function SpotView({
         }
       />
       <Cap big chip={chip}>
-        🏰 {realm.name}
+        <GameIcon name="portal" /> {realm.name}
       </Cap>
     </>
   );
@@ -220,7 +228,7 @@ export default function TownMap({
   const ready = variants(`/town/${slug}`).length > 0; // sem imagem ainda: mostra os prédios como placeholders clicáveis
   return (
     <div
-      className="town"
+      className="town town-fit"
       style={{
         background: "linear-gradient(160deg,#241a5a,#10102e 60%,#0b2a3a)",
       }}
@@ -229,7 +237,9 @@ export default function TownMap({
         className="town-bg"
         style={{ background: bg(`/town/${slug}`, "center/cover no-repeat") }}
       />
-      <div className="town-title">📍 {mapName}</div>
+      <div className="town-title">
+        <GameIcon name="pin" className="text-amber-300" /> {mapName}
+      </div>
       {SPOTS.map((s) => (
         <SpotView
           key={s.id}

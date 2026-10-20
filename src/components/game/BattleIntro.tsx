@@ -1,7 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
+import GameIcon from "@/components/game/GameIcon";
 
-// tela de entrada da luta: ⚔ CAÇADA (vermelha, rápida) ou 🏰 REINO (roxa/dourada, mais longa). Clique para pular.
+// tela de entrada da luta: CAÇADA (vermelha, rápida) ou REINO (roxa/dourada, mais longa). Clique para pular.
 export default function BattleIntro({
   realm,
   title,
@@ -26,7 +27,9 @@ export default function BattleIntro({
       role="status"
     >
       <div>
-        <div className="bi-ico">{realm ? "🏰" : "⚔️"}</div>
+        <div className="bi-ico">
+          <GameIcon name={realm ? "portal" : "swords"} />
+        </div>
         <div className="bi-kicker">
           {realm ? "VOCÊ ENTROU NO REINO" : "CAÇADA"}
         </div>

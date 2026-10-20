@@ -15,7 +15,7 @@ const ACC = {
 } as const;
 export type Accent = keyof typeof ACC;
 type P = {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   sub: string;
   accent: Accent;

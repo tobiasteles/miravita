@@ -11,6 +11,8 @@ import { bg } from "@/lib/img";
 import { WORLD_PINS } from "@/lib/game/town";
 import { realmStatus } from "@/lib/game/realm-schedule";
 import SafeImg from "@/components/game/SafeImg";
+import GameIcon from "@/components/game/GameIcon";
+
 
 // MAPA-MÚNDI: cada mapa é um marcador clicável (fundo: public/world/mapa-mundi.png)
 export default async function MapPage() {
@@ -30,12 +32,12 @@ export default async function MapPage() {
       <Link href="/play" className="text-violet-300">
         ← Voltar à cidade
       </Link>
-      <h1 className="text-xl font-bold">🗺️ Mapa-múndi</h1>
+      <h1 className="flex items-center gap-2 text-xl font-bold"><GameIcon name="compass" className="text-amber-300" /> Mapa-múndi</h1>
       <p className="text-sm text-violet-300">
         {mage
           ? "Sua classe mágica teleporta sem gastar pedras."
           : `Teleportar gasta 1 Pedra de Teletransporte (você tem ${st}).`}{" "}
-        🏰 = Reino aberto agora.
+        <GameIcon name="portal" /> = Reino aberto agora.
       </p>
       <div
         className="town"
@@ -86,9 +88,9 @@ export default async function MapPage() {
                 className={`pin-btn ${locked ? "pin-lock" : ""} ${here ? "pin-here" : ""}`}
               >
                 <span className="pin-dot">
-                  {here ? "📍" : locked ? "🔒" : "🗺️"}
+                 <GameIcon name={here ? "pin" : locked ? "lock" : "compass"} />
                   {realmStatus(m.slug).open && (
-                    <span className="pin-realm">🏰</span>
+                    <span className="pin-realm"><GameIcon name="portal" /></span>
                   )}
                 </span>
                 <span className="town-label">{m.name}</span>
@@ -113,7 +115,7 @@ export default async function MapPage() {
               src="/items/teleport-stone.png"
               className="mr-1 inline h-5 w-5"
             />
-            Comprar pedra (150g) · 💰 {Number(c.gold)}
+            Comprar pedra (150g) · <GameIcon name="coin" className="text-amber-300" /> {Number(c.gold)}
           </button>
         </form>
       )}

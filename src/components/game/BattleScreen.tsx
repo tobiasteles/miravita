@@ -2,6 +2,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import SafeImg from "@/components/game/SafeImg";
+import GameIcon, { type IconName } from "@/components/game/GameIcon";
+import Emo from "@/components/game/Emo";
 import { variants, bg } from "@/lib/img";
 import { REALMS } from "@/lib/game/realms";
 import { battleAct } from "@/actions/battle";
@@ -53,19 +55,20 @@ const DC: Record<string, string> = {
   humanas: "#d97706cc",
   linguagens: "#7c3aedcc",
 };
-const MON = ["👹", "🐺", "🐍", "🦂", "👻", "🐉", "🦇", "🗿"],
-  PL: Record<string, string> = {
-    exatas: "⚔️",
-    humanas: "📜",
-    linguagens: "✒️",
-  };
+
+// ícone de reserva (quando falta a imagem): classe antiga → ícone
+const PLI: Record<string, IconName> = {
+  exatas: "sword",
+  humanas: "scroll",
+  linguagens: "quill",
+};
 function Sprite({
   srcs,
   fb,
   cls,
 }: {
   srcs: string[];
-  fb: string;
+  fb: React.ReactNode;
   cls: string;
 }) {
   const [i, setI] = useState(0);
@@ -77,9 +80,14 @@ function Sprite({
       className={`${cls} object-contain [image-rendering:pixelated]`}
     />
   ) : (
-    <div className={`${cls} grid place-items-center text-6xl`}>{fb}</div>
+    <div
+      className={`${cls} grid place-items-center text-[min(12vh,6rem)] text-violet-200/80`}
+    >
+      {fb}
+    </div>
   );
 }
+
 const Bar = ({ v, m }: { v: number; m: number }) => {
   const p = Math.max(0, Math.min(100, (v / m) * 100));
   return (
@@ -140,13 +148,13 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
       mult === 2
         ? {
             label: "text-amber-300",
-            txt: "⚡ PERFEITO! Crítico garantido (x2)",
+            txt: "PERFEITO! Crítico garantido (x2)",
             pos: x,
             m: mult,
           }
         : mult === 1.4
-          ? { label: "text-emerald-300", txt: "✔ BOM! (x1,4)", pos: x, m: mult }
-          : { label: "text-rose-300", txt: "✖ ERROU (x1)", pos: x, m: mult },
+          ? { label: "text-emerald-300", txt: "BOM! (x1,4)", pos: x, m: mult }
+          : { label: "text-rose-300", txt: "ERROU (x1)", pos: x, m: mult },
     );
     timer.current = window.setTimeout(
       () => act({ a: "skill", i: sk, m: mult }),
@@ -178,13 +186,13 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
   const es = slug(b.e.n),
     lock = (s: It) => (p.lv < s.lv ? ` · Nv.${s.lv}` : "");
   const m =
-    "rounded border-2 border-slate-500 bg-slate-100 px-2 py-2 text-left font-mono text-sm font-bold text-slate-800 transition hover:bg-amber-200 disabled:opacity-40";
-  const fb =
-    MON[[...es].reduce((a, ch) => a + ch.charCodeAt(0), 0) % MON.length];
+    "flex items-center gap-1.5 rounded border-2 border-slate-500 bg-slate-100 px-2 py-1.5 text-left font-mono text-sm font-bold text-slate-800 transition hover:bg-amber-200 disabled:opacity-40";
+  const top = b.dungeon ? "top-12" : "top-3"; // no Reino o banner ocupa o topo
   return (
-    <main className="mx-auto max-w-md space-y-2 p-2">
+    // TELA FIXA: a cena ocupa o que sobra e o painel de comandos fica sempre visível embaixo (nada de rolar a página)
+    <main className="mx-auto flex h-dvh max-w-5xl flex-col gap-2 overflow-hidden p-2">
       <div
-        className="relative h-80 overflow-hidden rounded-xl border-4 border-slate-700"
+        className="relative min-h-0 flex-1 overflow-hidden rounded-xl border-4 border-slate-700"
         style={{
           background: `linear-gradient(${sky} 0 52%, ${ground} 52% 100%)`,
         }}
@@ -208,11 +216,12 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
         />
         {b.dungeon && RM && (
           <div className="absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/70 to-transparent px-3 py-1.5 text-center">
-            <span className="font-mono text-xs font-bold tracking-widest text-amber-300">
-              🏰 {RM.name.toUpperCase()}
+            <span className="inline-flex items-center gap-1.5 font-mono text-xs font-bold tracking-widest text-amber-300">
+              <GameIcon name="portal" /> {RM.name.toUpperCase()}
             </span>
             <span className="block text-[10px] text-violet-200">
-              {RM.tagline} · ⚠ mais difícil que a caçada normal
+              {RM.tagline} · <GameIcon name="warn" /> mais difícil que a caçada
+              normal
             </span>
           </div>
         )}
@@ -230,14 +239,15 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
             }}
           />
         )}
-        <div className="absolute right-2 top-[26%] h-8 w-44 rounded-[50%] bg-black/20" />
+        {/* inimigo (canto direito) */}
+        <div className="absolute right-[5%] top-[52%] h-[6%] w-[24%] rounded-[50%] bg-black/25" />
         <Sprite
           key={es}
           srcs={variants(`/monsters/${es}`)}
-          fb={fb}
-          cls="absolute right-6 top-8 h-32 w-32"
+          fb={<GameIcon name="skull" />}
+          cls="absolute right-[7%] top-[12%] aspect-square h-[44%]"
         />
-        <Box cls="left-2 top-3">
+        <Box cls={`left-2 ${top}`}>
           <div className="flex justify-between font-bold">
             <span className="truncate">{b.e.n}</span>
             <span>Nv{b.e.L}</span>
@@ -247,29 +257,38 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
             <Bar v={b.e.hp} m={b.e.mx} />
           </div>
           {b.sv && (
-            <div>
-              👻 {b.sv.n} ({b.sv.t})
+            <div className="flex items-center gap-1">
+              <GameIcon name="ghost" /> {b.sv.n} ({b.sv.t})
             </div>
           )}
-          {b.dom && <div>🌀 Domínio ({b.dom.t})</div>}
-          {(b.burn ?? 0) > 0 && <div>💤 Esgotamento ({b.burn})</div>}
+          {b.dom && (
+            <div className="flex items-center gap-1">
+              <GameIcon name="vortex" /> Domínio ({b.dom.t})
+            </div>
+          )}
+          {(b.burn ?? 0) > 0 && (
+            <div className="flex items-center gap-1">
+              <GameIcon name="moon" /> Esgotamento ({b.burn})
+            </div>
+          )}
         </Box>
-        <div className="absolute bottom-2 left-3 h-9 w-52 rounded-[50%] bg-black/25" />
+        {/* jogador (canto esquerdo) */}
+        <div className="absolute bottom-[5%] left-[3%] h-[7%] w-[26%] rounded-[50%] bg-black/25" />
         <Sprite
           key={p.av}
           srcs={[
             ...variants(`/battle/player/${p.av}`),
             ...variants(`/avatars/${p.av}`),
           ]}
-          fb={PL[p.cls] ?? "🧙"}
-          cls="absolute bottom-6 left-8 h-32 w-32"
+          fb={<GameIcon name={PLI[p.cls] ?? "spark"} />}
+          cls="absolute bottom-[8%] left-[6%] aspect-square h-[42%]"
         />
         {b.sv && (
           <Sprite
             key={b.sv.n}
             srcs={variants(`/summons/${slug(b.sv.n)}`)}
-            fb="👻"
-            cls="absolute bottom-24 left-28 h-24 w-24 opacity-90"
+            fb={<GameIcon name="ghost" />}
+            cls="absolute bottom-[30%] left-[24%] aspect-square h-[28%] opacity-90"
           />
         )}
         <Box cls="bottom-3 right-2">
@@ -297,14 +316,18 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           </div>
         </Box>
       </div>
-      <div className="rounded-xl border-4 border-slate-700 bg-slate-800 p-3 font-mono text-sm text-white">
-        <div className="min-h-20">
+
+      {/* painel de comandos: registro à esquerda, botões à direita (sempre na tela) */}
+      <div className="grid shrink-0 gap-3 rounded-xl border-4 border-slate-700 bg-slate-800 p-3 font-mono text-sm text-white md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]">
+        <div className="max-h-32 min-h-16 overflow-y-auto text-xs md:text-sm">
           {b.log.slice(-3).map((l, i) => (
-            <div key={i}>{l}</div>
+            <div key={i}>
+              <Emo>{l}</Emo>
+            </div>
           ))}
           {b.res.some((l) => l.includes("⬆️")) && (
             <div
-              className="relative my-1 grid h-14 place-items-center overflow-hidden rounded bg-violet-700/60 bg-cover bg-center"
+              className="relative my-1 grid h-10 place-items-center overflow-hidden rounded bg-violet-700/60 bg-cover bg-center"
               style={{ backgroundImage: bg("/brand/levelup-banner") }}
             >
               <span className="font-bold tracking-[.4em] text-amber-200 drop-shadow">
@@ -314,18 +337,18 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           )}
           {b.res.map((l, i) => (
             <div key={"r" + i} className="text-amber-300">
-              {l}
+              <Emo>{l}</Emo>
             </div>
           ))}
         </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3">
           {b.over === "wave" ? (
             <button
               disabled={pend}
               className={m}
               onClick={() => act({ a: "next" })}
             >
-              ▶ PRÓXIMA ONDA
+              <GameIcon name="play" /> PRÓXIMA ONDA
             </button>
           ) : b.over ? (
             <button
@@ -333,41 +356,41 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
               className={m}
               onClick={() => act({ a: "end" })}
             >
-              ▶ CONTINUAR
+              <GameIcon name="play" /> CONTINUAR
             </button>
           ) : menu === "main" ? (
             <>
               <button className={m} onClick={() => setMenu("sk")}>
-                LUTAR
+                <GameIcon name="swords" /> LUTAR
               </button>
               <button
                 disabled={pend}
                 className={m}
                 onClick={() => setMenu("it")}
               >
-                ITEM
+                <GameIcon name="flask" /> ITEM
               </button>
               <button
                 disabled={!p.summons.length}
                 className={m}
                 onClick={() => setMenu("sm")}
               >
-                INVOCAR
+                <GameIcon name="ghost" /> INVOCAR
               </button>
               <button
                 disabled={pend}
                 className={m}
                 onClick={() => act({ a: "flee" })}
               >
-                FUGIR
+                <GameIcon name="boots" /> FUGIR
               </button>
               {p.dom && (
                 <button
                   disabled={pend || !p.dom.ok}
-                  className={m + " col-span-2 !bg-amber-200"}
+                  className={m + " col-span-full !bg-amber-200"}
                   onClick={() => act({ a: "domain" })}
                 >
-                  🌀 {p.dom.n} ({p.dom.need} EA)
+                  <GameIcon name="vortex" /> {p.dom.n} ({p.dom.need} EA)
                 </button>
               )}
             </>
@@ -385,13 +408,15 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
                 >
                   <SafeImg
                     src={`/skills/${p.cls}-${i + 1}.png`}
-                    className="mr-1 inline h-5 w-5"
+                    className="inline h-5 w-5"
                   />
-                  {s.n} ({s.c}EA{lock(s)})
+                  <span className="min-w-0 truncate">
+                    {s.n} ({s.c}EA{lock(s)})
+                  </span>
                 </button>
               ))}
               <button className={m} onClick={() => setMenu("main")}>
-                ← VOLTAR
+                <GameIcon name="arrowleft" /> VOLTAR
               </button>
             </>
           ) : menu === "it" ? (
@@ -408,11 +433,11 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
                   className={m}
                   onClick={() => act({ a: "potion", k })}
                 >
-                  {n} ×{p.pots[k]}
+                  <GameIcon name="flask" /> {n} ×{p.pots[k]}
                 </button>
               ))}
               <button className={m} onClick={() => setMenu("main")}>
-                ← VOLTAR
+                <GameIcon name="arrowleft" /> VOLTAR
               </button>
             </>
           ) : menu === "sm" ? (
@@ -424,15 +449,17 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
                   className={m}
                   onClick={() => act({ a: "summon", i })}
                 >
-                  {s.n} ({s.c}EA{lock(s)})
+                  <span className="min-w-0 truncate">
+                    {s.n} ({s.c}EA{lock(s)})
+                  </span>
                 </button>
               ))}
               <button className={m} onClick={() => setMenu("main")}>
-                ← VOLTAR
+                <GameIcon name="arrowleft" /> VOLTAR
               </button>
             </>
           ) : (
-            <div className="col-span-2">
+            <div className="col-span-full">
               <div className="text-xs text-slate-300">
                 {tl
                   ? "Resultado:"
@@ -465,17 +492,22 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
               </div>
               {tl ? (
                 <div
-                  className={`py-1 text-center text-lg font-bold ${tl.label}`}
+                  className={`flex items-center justify-center gap-2 py-1 text-center text-lg font-bold ${tl.label}`}
                 >
+                  <GameIcon
+                    name={
+                      tl.m === 2 ? "bolt" : tl.m === 1.4 ? "check" : "cross"
+                    }
+                  />{" "}
                   {tl.txt}
                 </div>
               ) : (
                 <button
                   disabled={pend}
-                  className={m + " w-full text-center"}
+                  className={m + " w-full justify-center text-center"}
                   onClick={hit}
                 >
-                  ⚡ AGORA!
+                  <GameIcon name="bolt" /> AGORA!
                 </button>
               )}
             </div>
