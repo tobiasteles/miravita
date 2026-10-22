@@ -1,5 +1,6 @@
 import { monsterXp } from "./xp";
 import type { Mon } from "./battle";
+import { monBase, KIND_MUL } from "./combat";
 
 // ───── BESTIÁRIO: 120 monstros comuns (20 por mapa, de nível crescente) + 18 sub-chefes + 12 chefes de Portal ─────
 // Os nomes viram o nome do arquivo de imagem em public/monsters/<nome-em-slug>.png (sem acento, minúsculas, hífens).
@@ -186,26 +187,41 @@ const levelsOf = (slug: string) => {
   }));
 };
 
-// stats por nível: comum x1 · sub-chefe (⭐) vida x2,2, ataque x1,25, XP x3 · chefe (👑) vida x4, ataque x1,5, XP x6
+// stats por nível (curva em combat.ts → monBase): comum x1 · sub-chefe (⭐) vida x3, ataque x1,3, XP x3, 1 padrão · chefe (👑) vida x9, ataque x1,55, XP x8, 2–3 padrões
+// padrões de chefe: carga (golpe devastador telegrafado: atordoe ou use Véu/Barreira) · couraça (defesa ×2,5: quebre a guarda) · fúria (abaixo de 30% do HP bate mais forte e carrega mais rápido)
+const hash = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+const ARC = /(Mago|Lich|Bruxa|Arquimago|Sacerdote|Banshee|Espectro|Fada|Dríade|Djinn|Cultista|Fogo-Fátuo|Anjo|Demônio|Arconte|Sombra|Fantasma|Esfinge|Faraó|Naga)/;
 export function mkMonster(name: string, L: number, kind: Kind): Mon {
-  const k =
-    kind === "boss"
-      ? { hp: 4, atk: 1.5, xp: 6, pre: "👑 " }
-      : kind === "sub"
-        ? { hp: 2.2, atk: 1.25, xp: 3, pre: "⭐ " }
-        : { hp: 1, atk: 1, xp: 1, pre: "" };
-  const hp = Math.round((40 + 10 * L ** 1.3) * k.hp);
+  const b = monBase(L),
+    k = KIND_MUL[kind],
+    pre = kind === "boss" ? "👑 " : kind === "sub" ? "⭐ " : "",
+    h = hash(name),
+    hp = Math.round(b.hp * k.hp);
+  const PATS = ["carga", "couraca", "furia"] as const;
+  const pat: Mon["pat"] = kind === "boss" ? [...PATS].filter((_, i) => kind === "boss" && (i === 0 || (h + i) % 3 !== 0)).slice(0, 3) : kind === "sub" ? [PATS[h % 3]] : [];
+  if (kind === "boss" && !pat.includes("couraca") && !pat.includes("furia")) pat.push("couraca");
   return {
-    n: k.pre + name,
+    n: pre + name,
     L,
     hp,
     mx: hp,
-    atk: Math.round((5 + 3.5 * L) * k.atk),
-    def: Math.round(2 + 0.5 * L),
+    atk: Math.round(b.atk * k.atk),
+    def: Math.round(b.def),
     xp: monsterXp(L) * k.xp,
     boss: kind !== "mon",
+    kind,
+    refl: b.refl,
+    acc: b.acc,
+    dt: ARC.test(name) ? "arc" : "fis",
+    rs: kind === "boss" ? 0.55 : kind === "sub" ? 0.4 : 0.25,
+    pat,
   };
 }
+// grind infinito: cada 5 monstros derrotados a "intensidade" sobe 4% (máx. +60%) em vida e ataque; zera ao voltar para a cidade
+export const heatUp = (m: Mon, heat: number): Mon => {
+  const hp = Math.round(m.hp * (1 + heat)), atk = Math.round(m.atk * (1 + heat));
+  return { ...m, hp, mx: hp, atk };
+};
 // escolhe o monstro do mapa cujo nível está perto do jogador (janela de níveis proporcional ao tamanho do mapa); se nenhum, o mais próximo
 export function pickMonster(slug: string, pl: number) {
   const m = BESTIARY[slug],

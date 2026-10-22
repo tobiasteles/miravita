@@ -5,8 +5,10 @@ import { db } from "@/db";
 import { inventory, items, elements } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { computeItem } from "@/lib/game/item-stats";
+import { usesSword } from "@/lib/game/classes";
 import {
   computeEquip,
+  computeWeapon,
   EQUIP_NAMES,
   SLOT_KEYS,
   type SlotKey,
@@ -38,8 +40,9 @@ export async function forge(fd: FormData) {
     .where(eq(elements.atomicNumber, z));
   if (!el) return;
   const s = computeItem(el),
-    stats = computeEquip(slot, s),
-    name = `${EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`;
+    magic = slot === "arma" && !usesSword(a.c.classKey), // magos forjam Cajados (Grimório e Orbe só na Conveniência)
+    stats = magic ? computeWeapon("cajado", s) : computeEquip(slot, s),
+    name = `${magic ? "Cajado" : EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`;
   await db
     .update(inventory)
     .set({ quantity: m.inv.quantity - 5 })

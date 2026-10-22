@@ -216,6 +216,20 @@ export const characters = pgTable(
       .default({ for: 0, int: 0, des: 0 })
       .notNull(),
     sub: jsonb("sub").$type<number[]>().default([0, 0, 0]).notNull(),
+    // poderes: "learned" = aprendidos na Academia · "loadout" = os (até) 4 equipados para a luta · "infuse" = elemento (Z) da Infusão Elemental
+    kit: jsonb("kit")
+      .$type<{ learned: number[]; loadout: number[]; infuse?: number | null }>()
+      .default({ learned: [0], loadout: [0] })
+      .notNull(),
+    // atividades opcionais: expedição ociosa, escavação de veios e a última descoberta
+    activity: jsonb("activity")
+      .$type<{
+        exp?: { tier: number; slug: string; endsAt: number } | null;
+        dig?: { charges: number; at: number };
+        last?: string[]; // relatório da última atividade (expedição, escavação, síntese)
+      }>()
+      .default({})
+      .notNull(),
     domain: jsonb("domain").$type<{
       name: string;
       aspect: string;
@@ -290,11 +304,15 @@ export const items = pgTable("items", {
   classRestriction: classKeyEnum("class_restriction"),
   stats: jsonb("stats")
     .$type<{
-      atk?: number;
+      atk?: number; // Poderio (Físico para espadas, Arcano para armas mágicas)
       def?: number;
       hp?: number;
-      crit?: number;
+      mp?: number;
+      crit?: number; // Chance de Ruptura
       durability?: number;
+      // status novos (todos opcionais, em %, exceto foco/refl):
+      res?: number; mit?: number; sifV?: number; sifE?: number; foco?: number; refl?: number; reg?: number;
+      imp?: number; ten?: number; ret?: number; qg?: number; rupD?: number; pen?: number;
     }>()
     .notNull(), // jsonb: não precisa de migração para novos campos opcionais
   value: bigint("value", { mode: "number" }).notNull(), // valor econômico calculado

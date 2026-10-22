@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveCharacter } from "@/lib/session";
 import { xpToNext } from "@/lib/game/xp";
@@ -30,8 +31,7 @@ export default async function Play() {
     open: rs.open,
     at: (rs.open ? rs.closesAt : rs.opensAt).toISOString(),
   };
-  const rail =
-    "flex shrink-0 flex-col gap-2 lg:w-[clamp(170px,16vw,260px)] lg:overflow-y-auto";
+  const rail = "flex shrink-0 flex-col gap-2 lg:w-[clamp(170px,16vw,260px)] lg:overflow-y-auto";
   return (
     <main className="mx-auto flex max-w-[1900px] flex-col gap-2 p-2 lg:h-dvh lg:overflow-hidden lg:p-3">
       {/* ----- topo: logo + personagem ----- */}
@@ -93,22 +93,14 @@ export default async function Play() {
 
         {/* direita: luta, Reino e informações do mapa */}
         <aside className={`${rail} order-3`}>
-          <Tile
-            icon={<GameIcon name="swords" className="text-rose-300" />}
-            title="Caçar"
-            sub={`Monstros de ${mapName}`}
-            action={startBattle}
-            fields={{ kind: "hunt" }}
-            accent="red"
-          />
+          <Link href="/gate" className="town-hunt relative flex items-center gap-3 rounded-xl border-2 border-rose-500 bg-rose-950/40 p-3 transition hover:bg-rose-900/40">
+            <GameIcon name="swords" size="1.9rem" className="text-rose-300" />
+            <div className="min-w-0 flex-1"><div className="font-bold">Portão da Cidade</div><div className="truncate text-xs text-rose-200">Caçada contínua em {mapName}</div></div>
+          </Link>
           <Tile
             icon={<GameIcon name="portal" className="text-violet-300" />}
             title={realm.name}
-            sub={
-              realm.open
-                ? "Aberto agora · 4 etapas"
-                : "Fechado · abre em horário aleatório"
-            }
+            sub={realm.open ? "Aberto agora · 4 etapas" : "Fechado · abre em horário aleatório"}
             action={startBattle}
             fields={{ kind: "dungeon" }}
             accent="violet"

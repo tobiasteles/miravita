@@ -9,6 +9,8 @@ import { users, characters, characterTraits, classes, maps } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { CLASS_KEYS } from "@/lib/game/classes";
 import { MAGIC, stoneStack } from "@/lib/stone";
+import { ENCOUNTER_P, escortCost, type TravelMode } from "@/lib/game/travel";
+import { spawn, blankState, saveBattle } from "@/lib/game/encounter";
 import { inventory } from "@/db/schema";
 
 async function uid() {
@@ -92,23 +94,31 @@ export async function selectCharacter(fd: FormData) {
 export async function travel(fd: FormData) {
   const a = await getActiveCharacter();
   if (!a) redirect("/characters");
-  const [m] = await db
-    .select()
-    .from(maps)
-    .where(eq(maps.id, String(fd.get("mapId"))));
+  const [m] = await db.select().from(maps).where(eq(maps.id, String(fd.get("mapId"))));
   if (!m || a.c.level < m.minLevel || m.id === a.c.currentMapId) return;
-  if (!MAGIC.includes(a.c.classKey)) {
-    const { row } = await stoneStack(a.c.id);
-    if (!row || row.quantity < 1) return;
-    await db
-      .update(inventory)
-      .set({ quantity: row.quantity - 1 })
-      .where(eq(inventory.id, row.id));
-  }
-  await db
-    .update(characters)
-    .set({ currentMapId: m.id })
-    .where(eq(characters.id, a.c.id));
+  const mode = String(fd.get("mode")) as TravelMode, mage = MAGIC.includes(a.c.classKey);
+  let gold = Number(a.c.gold);
+  if (mode === "teleporte") {
+    if (!mage) return;
+  } else if (mode === "pedra") {
+    if (!mage) {
+      const { row } = await stoneStack(a.c.id);
+      if (!row || row.quantity < 1) return;
+      await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
+    }
+  } else if (mode === "escolta") {
+    const cost = escortCost(m.minLevel, a.c.level);
+    if (gold < cost) return;
+    gold -= cost; // os guardas levam você em segurança
+  } else if (mode !== "estrada") return;
+  await db.update(characters).set({ currentMapId: m.id, gold }).where(eq(characters.id, a.c.id));
   revalidatePath("/play");
   revalidatePath("/map");
+  // ENCONTRO ALEATÓRIO: só no caminho a pé (estrada)
+  if (mode === "estrada" && Math.random() < ENCOUNTER_P) {
+    const kind = Math.random() < 0.15 ? "sub" : "mon";
+    const e = await spawn(m.slug, a.c.level, kind, false);
+    await saveBattle(a.c.id, blankState(e, [], m.slug, { ambush: true, log: [`⚠ EMBOSCADA na estrada! ${e.n} (Nv. ${e.L}) bloqueia o caminho!`] }));
+    redirect("/battle");
+  }
 }

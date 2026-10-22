@@ -1,10 +1,11 @@
 import { ASPECTS, DOMAINS, DOMAIN_TERM, domFx, type DomainCfg } from "@/lib/game/battle"; import { forgeDomain } from "@/actions/world"; import SafeImg from "@/components/game/SafeImg";
+import GameIcon from "@/components/game/GameIcon";
 export default function DomainCard({ c }: { c: { level: number; classKey: string; gold: number | string; domain: DomainCfg | null } }) {
   const D = DOMAINS[c.classKey], A = ASPECTS[c.classKey], dm = c.domain, f = dm ? domFx(c.classKey, dm) : null, locked = c.level < D.lv;
   return <div className="rounded-lg border-2 border-amber-400/70 bg-[#171433] p-3 shadow-[0_0_24px_#fbbf2433]"><div className="text-xs uppercase tracking-widest text-amber-300">{DOMAIN_TERM} · técnica suprema</div>
-    {locked ? <div className="opacity-60"><b className="text-lg">🌀 ???</b> <span className="text-sm text-violet-400">🔒 Nv. {D.lv}: você mesmo escolhe o nome e o aspecto.</span></div> : <>
-      {f && dm ? <div className="mb-2"><b className="text-lg">🌀 {f.n}</b> <span className="text-sm" style={{ color: f.color }}>● {f.aspect}</span>
-        <div className="text-sm text-violet-200">Maestria {f.mastery}/10 · poder ×{f.p.toFixed(2)} do ATK por turno · custo {Math.round(f.cost * 100)}% de EA</div>
+    {locked ? <div className="opacity-60"><b className="text-lg"><GameIcon name="vortex" /> ???</b> <span className="text-sm text-violet-400"><GameIcon name="lock" /> Nv. {D.lv}: você mesmo escolhe o nome e o aspecto.</span></div> : <>
+      {f && dm ? <div className="mb-2"><b className="text-lg"><GameIcon name="vortex" /> {f.n}</b> <span className="text-sm" style={{ color: f.color }}>● {f.aspect}</span>
+        <div className="text-sm text-violet-200">Maestria {f.mastery}/10 · poder ×{f.p.toFixed(2)} do Poderio por turno · custo {Math.round(f.cost * 100)}% de EA</div>
         <div className="my-1 h-2 rounded bg-[#0c0a1f]"><div className="h-2 rounded bg-amber-400" style={{ width: f.mastery >= 10 ? "100%" : `${(dm.uses % 5) * 20}%` }} /></div><div className="text-xs text-violet-400">Cada uso em batalha aproxima a próxima maestria (+5% de poder, -2% de custo).</div></div>
         : <p className="text-sm text-violet-200">Você alcançou o auge. Dê nome à sua técnica suprema e escolha o aspecto que define como ela funciona.</p>}
       <details open={!dm}><summary className="cursor-pointer text-sm text-amber-300">{dm ? "Reforjar (10.000g, mantém a maestria)" : "Forjar minha técnica suprema"}</summary>

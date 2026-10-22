@@ -7,11 +7,12 @@ import GameIcon, { type IconName } from "@/components/game/GameIcon";
 const KEYS: readonly (readonly [string, string, string, IconName])[] = [
   ["q", "/quests", "Missões", "scroll"],
   ["o", "/inventory", "Inventário", "backpack"],
-  ["t", "/skills", "Técnicas", "spark"],
+  ["t", "/skills", "Academia", "book"],
   ["g", "/guild", "Guilda", "shield"],
   ["c", "#chat", "Chat", "chat"],
-  ["h", "/attributes", "Habilidades", "stats"],
+  ["h", "/attributes", "Atributos", "stats"],
   ["m", "/map", "Mapa", "compass"],
+  ["a", "/atividades", "Atividades", "pick"],
 ];
 const chat = () => {
   dispatchEvent(new Event("mv-chat-open"));
@@ -46,7 +47,7 @@ export function HotkeyBar() {
     </>
   );
   return (
-    <nav className="grid grid-cols-4 gap-2 sm:grid-cols-7 lg:flex lg:flex-col">
+    <nav className="grid grid-cols-4 gap-2 sm:grid-cols-8 lg:flex lg:flex-col">
       {KEYS.map(([k, href, l, i]) =>
         href === "#chat" ? (
           <button key={k} onClick={chat} className={c}>

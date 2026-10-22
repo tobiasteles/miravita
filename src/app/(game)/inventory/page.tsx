@@ -7,7 +7,9 @@ import { getActiveCharacter } from "@/lib/session";
 import { toggleEquip } from "@/actions/inventory";
 import SafeImg from "@/components/game/SafeImg";
 import CraftingBench from "@/components/game/CraftingBench";
-import { SLOTS, slotIcon, slotPrefix } from "@/lib/game/equipment";
+import { SLOTS, slotsFor, slotIcon, slotPrefix, statLine } from "@/lib/game/equipment";
+import { usesSword } from "@/lib/game/classes";
+import GameIcon from "@/components/game/GameIcon";
 
 const RC: Record<string, string> = {
   comum: "text-violet-300",
@@ -15,15 +17,7 @@ const RC: Record<string, string> = {
   epico: "text-purple-400",
   lendario: "text-amber-300",
 };
-const st = (s: { atk?: number; def?: number; hp?: number; crit?: number }) =>
-  [
-    s.atk ? `ATK+${s.atk}` : "",
-    s.def ? `DEF+${s.def}` : "",
-    s.hp ? `HP+${s.hp}` : "",
-    s.crit ? `CRIT+${s.crit}%` : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
+const st = (s: Record<string, number | undefined>) => statLine(s);
 
 export default async function Inv() {
   const a = await getActiveCharacter();
@@ -52,7 +46,7 @@ export default async function Inv() {
       <Link href="/play" className="text-violet-300">
         ← Voltar
       </Link>
-      <h1 className="text-xl font-bold">🛠️ Bancada de Forja</h1>
+      <h1 className="flex items-center gap-2 text-xl font-bold"><GameIcon name="anvil" className="text-rose-300" /> Bancada de Forja</h1>
       <section className="rounded-lg border border-violet-900 bg-[#171433] p-3">
         <CraftingBench
           mats={mats}
@@ -66,14 +60,11 @@ export default async function Inv() {
 
       <section className="rounded-lg border border-violet-900 bg-[#171433] p-3">
         <b>Equipamentos</b>
-        <div className="mt-2 grid grid-cols-5 gap-1 text-center text-[10px] text-violet-400">
-          {SLOTS.map((s) => (
-            <div key={s.key}>
-              {s.icon}
-              <br />
-              {gear.some((g) => g.it.type === s.key && g.inv.equipped)
-                ? "✅"
-                : "—"}
+        <div className="mt-2 grid grid-cols-6 gap-1 text-center text-[10px] text-violet-400">
+          {[...slotsFor(a.c.classKey), ...(usesSword(a.c.classKey) ? [] : [{ key: "acessorio", icon: "tunic" as const, label: "Traje" }])].map((s) => (
+            <div key={s.key} className="flex flex-col items-center">
+              <GameIcon name={s.icon} size="1.4em" />
+              {gear.some((g) => g.it.type === s.key && g.inv.equipped) ? <GameIcon name="check" className="text-emerald-400" /> : "—"}
             </div>
           ))}
         </div>
@@ -85,15 +76,15 @@ export default async function Inv() {
             <SafeImg
               src={`/items/${slotPrefix(r.it.type)}-${r.el?.symbol.toLowerCase()}.png`}
               className="h-10 w-10 rounded bg-violet-950 object-contain"
-              fallback={<span className="text-2xl">{slotIcon(r.it.type)}</span>}
+              fallback={<span className="text-2xl text-violet-300"><GameIcon name={slotIcon(r.it.type)} /></span>}
             />
             <div className="min-w-0 flex-1">
               <div>
-                {r.inv.equipped ? "✅ " : ""}
+                {r.inv.equipped ? <GameIcon name="check" className="mr-1 text-emerald-400" /> : null}
                 {r.it.name}
               </div>
               <div className="text-xs text-violet-400">
-                {r.it.rarity} · {st(r.it.stats)} · Dur {r.inv.currentDurability}
+                {r.it.rarity} · {st(r.it.stats as Record<string, number>)} · Dur {r.inv.currentDurability}
               </div>
             </div>
             <form action={toggleEquip}>
@@ -123,7 +114,7 @@ export default async function Inv() {
             <SafeImg
               src={`/items/mat-${m.symbol.toLowerCase()}.png`}
               className="h-10 w-10 rounded bg-violet-950 object-contain"
-              fallback={<span className="text-2xl">🪨</span>}
+              fallback={<span className="text-2xl text-violet-300"><GameIcon name="ore" /></span>}
             />
             <div className={`flex-1 ${RC[m.rarity]}`}>
               <b>

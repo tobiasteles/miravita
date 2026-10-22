@@ -8,7 +8,8 @@ import {
   inventory,
   items,
 } from "@/db/schema";
-import { playerStats, subFx } from "./battle";
+import { subFx } from "./battle";
+import { buildStats, type Gear } from "./combat";
 // as 3 consultas rodam juntas (uma ida ao banco em vez de três)
 export async function loadPlayer(id: string) {
   const [[r], tr, eqp] = await Promise.all([
@@ -28,27 +29,24 @@ export async function loadPlayer(id: string) {
       .innerJoin(items, eq(inventory.itemId, items.id))
       .where(and(eq(inventory.characterId, id), eq(inventory.equipped, true))),
   ]);
-  // soma os bônus das até 5 peças equipadas (arma, elmo, peitoral, manoplas, botas)
-  const gear = eqp.reduce(
-    (g, x) => ({
-      atk: g.atk + (x.s.atk ?? 0),
-      def: g.def + (x.s.def ?? 0),
-      hp: g.hp + (x.s.hp ?? 0),
-      crit: g.crit + (x.s.crit ?? 0),
-    }),
-    { atk: 0, def: 0, hp: 0, crit: 0 },
-  );
+  // soma TODOS os bônus numéricos das peças equipadas (arma, elmo, peitoral, manoplas, botas, traje)
+  const gear: Gear = {};
+  for (const x of eqp)
+    for (const [k, v] of Object.entries(x.s))
+      if (k !== "durability" && typeof v === "number") (gear as Record<string, number>)[k] = ((gear as Record<string, number>)[k] ?? 0) + v;
   return {
     c: r.c,
     k: r.k,
-    q: playerStats(
-      r.k.baseStats,
-      r.k.perLevelStats,
-      r.c.level,
-      tr.map((t) => t.b),
+    kit: r.c.kit ?? { learned: [0], loadout: [0] },
+    q: buildStats({
+      cls: r.k.key,
+      base: r.k.baseStats,
+      per: r.k.perLevelStats,
+      level: r.c.level,
+      traits: tr.map((t) => t.b),
       gear,
-      r.c.attrs,
-      subFx(r.k.key, r.c.sub),
-    ),
+      at: r.c.attrs,
+      fx: subFx(r.k.key, r.c.sub),
+    }),
   };
 }

@@ -2,6 +2,7 @@
 import { useState, useTransition } from "react";
 import { forge } from "@/actions/inventory";
 import SafeImg from "@/components/game/SafeImg";
+import GameIcon, { type IconName } from "@/components/game/GameIcon";
 
 type Mat = {
   z: number;
@@ -10,7 +11,7 @@ type Mat = {
   qty: number;
   rarity: string;
 };
-type Slot = { key: string; label: string; icon: string };
+type Slot = { key: string; label: string; icon: IconName };
 const RC: Record<string, string> = {
   comum: "border-violet-700",
   raro: "border-cyan-500",
@@ -52,7 +53,7 @@ export default function CraftingBench({
               <SafeImg
                 src={`/items/mat-${m.symbol.toLowerCase()}.png`}
                 className="h-6 w-6 object-contain"
-                fallback={<span>🪨</span>}
+                fallback={<GameIcon name="ore" />}
               />{" "}
               {m.symbol} ×{m.qty}
             </button>
@@ -76,7 +77,7 @@ export default function CraftingBench({
               onClick={() => craft(s.key)}
               className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-violet-700 bg-[#0c0a1f] text-[11px] text-violet-200 transition-colors duration-200 hover:border-cyan-400 hover:bg-cyan-950/20 disabled:cursor-not-allowed disabled:opacity-30"
             >
-              <span className="text-2xl">{s.icon}</span>
+              <span className="text-2xl"><GameIcon name={s.icon} /></span>
               {s.label}
             </button>
           ))}
