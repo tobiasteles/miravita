@@ -311,8 +311,19 @@ export const items = pgTable("items", {
       crit?: number; // Chance de Ruptura
       durability?: number;
       // status novos (todos opcionais, em %, exceto foco/refl):
-      res?: number; mit?: number; sifV?: number; sifE?: number; foco?: number; refl?: number; reg?: number;
-      imp?: number; ten?: number; ret?: number; qg?: number; rupD?: number; pen?: number;
+      res?: number;
+      mit?: number;
+      sifV?: number;
+      sifE?: number;
+      foco?: number;
+      refl?: number;
+      reg?: number;
+      imp?: number;
+      ten?: number;
+      ret?: number;
+      qg?: number;
+      rupD?: number;
+      pen?: number;
     }>()
     .notNull(), // jsonb: não precisa de migração para novos campos opcionais
   value: bigint("value", { mode: "number" }).notNull(), // valor econômico calculado
