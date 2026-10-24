@@ -12,6 +12,7 @@ import { CONS, addCons } from "@/lib/consumables";
 import { addElement, takeElement, elementQty } from "@/lib/equip";
 import { addStone } from "@/lib/stone";
 import { EXP, chargesNow, RECIPES } from "@/lib/game/activities";
+import { activeEvents, evMult } from "@/lib/game/live";
 
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1), rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)), pk = <T,>(a: readonly T[]) => a[rn(0, a.length - 1)];
 const nm = (z: number) => ELEMENT_BY_Z.get(z)?.[2] ?? `Z=${z}`;
@@ -32,7 +33,8 @@ export async function claimExpedition() {
   const act = a.c.activity ?? {}, ex = act.exp;
   if (!ex || Date.now() < ex.endsAt) return;
   const T = EXP[ex.tier], lvl = a.c.level, w = WORLD[ex.slug];
-  const gain = Math.round(monsterXp(lvl) * T.kills * 0.8 * XPM), gold = Math.round((5.5 + lvl) * T.kills * 0.8);
+  const evs = await activeEvents();
+  const gain = Math.round(monsterXp(lvl) * T.kills * 0.8 * XPM * evMult(evs, "xp")), gold = Math.round((5.5 + lvl) * T.kills * 0.8 * evMult(evs, "gold"));
   const r = applyXp(lvl, Number(a.c.xp), gain), rep = [`${T.n} concluída: +${gain.toLocaleString("pt-BR")} XP, +${gold.toLocaleString("pt-BR")}g`];
   const drops = Math.floor(T.kills / 6) + (Math.random() < 0.5 ? 1 : 0);
   for (let i = 0; i < drops; i++) {

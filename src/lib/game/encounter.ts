@@ -12,17 +12,25 @@ const rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1))
 const pk = <T,>(a: T[]) => a[rn(0, a.length - 1)];
 export type SpawnKind = "mon" | "sub" | "boss";
 
-// 30% dos comuns vêm do bestiário gerado por IA; no Reino todos ficam mais fortes (+30% vida, +20% ataque)
+// Monstros comuns: 30% vêm do bestiário (IA + os que você criou no /admin); se existir monstro SEU no mapa, ele entra mais (40%).
+// Sub-chefes e chefes: se você criou algum para o mapa, ele é usado em 70% das vezes.
 export async function spawn(slug: string, pl: number, kind: SpawnKind, realm: boolean, heat = 0): Promise<Mon> {
-  let m: Mon =
-    kind === "mon" && Math.random() < 0.3
-      ? await (async () => {
-          const rows = await db.select().from(aiMonsters).where(eq(aiMonsters.mapSlug, slug)).limit(30);
-          if (!rows.length) return spawnFor(slug, pl, kind);
-          const r = pk(rows) as { name: string; archetype: string };
-          return withArch(mkMonster(r.name, spawnFor(slug, pl, "mon").L, "mon"), r.archetype);
-        })()
-      : spawnFor(slug, pl, kind);
+  let rows: { name: string; archetype: string; kind: string; source: string }[] = [];
+  try {
+    rows = await db.select().from(aiMonsters).where(eq(aiMonsters.mapSlug, slug)).limit(80);
+  } catch {
+    /* sem tabela/colunas novas ainda */
+  }
+  const own = rows.filter((r) => r.kind === kind && r.source === "admin");
+  let m: Mon;
+  if (own.length && (kind === "mon" ? Math.random() < 0.4 : Math.random() < 0.7)) {
+    const r = pk(own), base = spawnFor(slug, pl, kind);
+    m = mkMonster(r.name, base.L, kind);
+    if (kind === "mon") m = withArch(m, r.archetype);
+  } else if (kind === "mon" && Math.random() < 0.3 && rows.some((r) => r.kind === "mon")) {
+    const r = pk(rows.filter((r) => r.kind === "mon"));
+    m = withArch(mkMonster(r.name, spawnFor(slug, pl, "mon").L, "mon"), r.archetype);
+  } else m = spawnFor(slug, pl, kind);
   if (realm) m = temper(m, 1.3, 1.2);
   return heat ? heatUp(m, heat) : m;
 }

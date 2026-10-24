@@ -1,12 +1,11 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useClerk } from "@clerk/nextjs";
+import { logout } from "@/actions/auth";
 type View = null | "menu" | "settings";
 export default function EscMenu() {
   const [v, setV] = useState<View>(null);
   const r = useRouter();
-  const { signOut } = useClerk();
   const [s, setS] = useState({
     sound: 70,
     graphics: "alta",
@@ -79,7 +78,7 @@ export default function EscMenu() {
                 </button>
                 <button
                   className={btn + " !bg-rose-600"}
-                  onClick={() => signOut({ redirectUrl: "/" })}
+                  onClick={() => logout()}
                 >
                   🚪 Desconectar
                 </button>

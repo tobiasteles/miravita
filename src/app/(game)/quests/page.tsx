@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { questClaims, questProgress } from "@/db/schema";
+import { customQuests, questClaims, questProgress } from "@/db/schema";
+import { ELEMENTS } from "@/lib/game/elements";
+import { claimCustomQuest } from "@/actions/custom-quests";
 import { getActiveCharacter } from "@/lib/session";
 import {
   STORY,
@@ -58,6 +60,7 @@ export default async function Quests() {
       .where(eq(questClaims.characterId, c.id)),
     db.select().from(questProgress).where(eq(questProgress.characterId, c.id)),
   ]);
+  const cq = await db.select().from(customQuests).where(eq(customQuests.active, true)).catch(() => []);
   const done = new Set(cl.map((x) => x.id)),
     pr = new Map(pg.map((x) => [x.questId, x.progress]));
   const streak = streakOf([...done], d),
@@ -306,6 +309,32 @@ export default async function Quests() {
           );
         })}
       </section>
+      {/* ───── MISSÕES ESPECIAIS (criadas no /admin) ───── */}
+      {cq.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-lg font-bold text-amber-300">Missões especiais</h2>
+          {cq.map((q) => {
+            const p = Math.min(q.amount, pr.get(q.id) ?? 0), dn = done.has(q.id), ok = c.level >= q.minLevel && (q.kind === "kill" ? p >= q.amount : true);
+            return (
+              <div key={q.id} className={`${box} ${c.level < q.minLevel ? "opacity-40" : ""}`}>
+                <b>{q.title}</b> <span className="text-xs text-violet-400">Nv. {q.minLevel}+</span>
+                <p className="text-sm">{q.story}</p>
+                <div className="text-xs text-violet-400">
+                  {q.kind === "kill" ? `Progresso: ${p}/${q.amount}` : `Entregar: ${q.amount}× ${ELEMENTS.find((e) => e[0] === q.elementZ)?.[2] ?? "elemento"}`} · recompensa: {q.gold}g e XP
+                </div>
+                {dn ? (
+                  <span className="text-emerald-400">✔ concluída</span>
+                ) : (
+                  <form action={claimCustomQuest}>
+                    <input type="hidden" name="id" value={q.id} />
+                    <button disabled={!ok} className={btn}>{q.kind === "kill" ? "Receber recompensa" : "Entregar"}</button>
+                  </form>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )}
     </main>
   );
 }

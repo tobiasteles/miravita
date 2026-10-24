@@ -1,11 +1,11 @@
 "use server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { getUserId } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
-import { users, characters, characterTraits, classes, maps } from "@/db/schema";
+import { characters, characterTraits, classes, maps } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { CLASS_KEYS } from "@/lib/game/classes";
 import { MAGIC, stoneStack } from "@/lib/stone";
@@ -14,17 +14,8 @@ import { spawn, blankState, saveBattle } from "@/lib/game/encounter";
 import { inventory } from "@/db/schema";
 
 async function uid() {
-  const { userId } = await auth();
+  const userId = await getUserId();
   if (!userId) redirect("/sign-in");
-  const u = await currentUser();
-  await db
-    .insert(users)
-    .values({
-      id: userId,
-      email: u?.primaryEmailAddress?.emailAddress ?? `${userId}@miravita.local`,
-      displayName: u?.username ?? u?.firstName ?? null,
-    })
-    .onConflictDoNothing();
   return userId;
 }
 const bad = (m: string) =>

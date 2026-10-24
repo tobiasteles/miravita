@@ -1,8 +1,8 @@
-# Grande atualização Miravita — como instalar
+# Painel /admin
 
-1. **Backup**: no Neon, crie uma *branch* do banco (ou exporte). Faça commit do projeto atual.
-2. **Copie os arquivos**: extraia este zip por cima da pasta do projeto (a pasta `src/` daqui se junta à `src/` do projeto, sobrescrevendo os arquivos de mesmo nome).
-3. **Colunas novas**: `npm run db:push` (cria `characters.kit` e `characters.activity`).
-4. **Migração**: abra `migracao.sql` no SQL Editor do Neon e execute.
-5. **Dados**: `npx tsx src/db/seed-update.ts` (atualiza as 10 classes e cadastra os 118 elementos).
-6. `npm run dev` e teste (veja a lista de testes no chat).
+Pré-requisito: o pacote "sem Clerk" já aplicado (o painel usa o login novo).
+
+1. Extraia por cima do projeto.
+2. `.env.local`: `ADMIN_EMAILS=seu@email.com` (e o mesmo na Vercel).
+3. `npm run db:push` (cria 4 tabelas e 3 colunas novas; se perguntar "created or renamed", escolha create).
+4. `npm run dev` e abra http://localhost:3000/admin

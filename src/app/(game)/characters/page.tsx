@@ -1,4 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { getUserId } from "@/lib/auth";
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { characters, traits } from "@/db/schema";
@@ -12,12 +13,13 @@ export default async function Page({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { userId } = await auth();
+  const userId = await getUserId();
+  if (!userId) redirect("/sign-in");
   const { error } = await searchParams;
   const list = await db
     .select()
     .from(characters)
-    .where(eq(characters.userId, userId!));
+    .where(eq(characters.userId, userId));
   const tr = await db.select().from(traits);
   return (
     <main className="mx-auto max-w-xl space-y-4 p-4">

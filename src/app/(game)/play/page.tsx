@@ -7,6 +7,7 @@ import { startBattle } from "@/actions/battle";
 import SafeImg from "@/components/game/SafeImg";
 import Tile from "@/components/game/Tile";
 import TownMap from "@/components/game/TownMap";
+import EventBanner from "@/components/game/EventBanner";
 import GameIcon from "@/components/game/GameIcon";
 import { HotkeyBar } from "@/components/game/Hotkeys";
 import { Logo, ClassSeal } from "@/components/brand/Brand";
@@ -78,6 +79,8 @@ export default async function Play() {
           </div>
         </section>
       </header>
+
+      <EventBanner />
 
       {/* ----- corpo: atalhos | cidade | ações ----- */}
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">

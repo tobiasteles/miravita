@@ -76,11 +76,12 @@ export const biomeEnum = pgEnum("biome", [
 ]);
 
 /* ───────────── USERS ───────────── */
-// Se usar Clerk, `id` = clerk user id (text). Com NextAuth, adapte para o adapter Drizzle.
+// Login próprio (src/lib/auth.ts). Contas antigas do Clerk mantêm o mesmo id; defina a senha com src/db/set-password.ts.
 export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   displayName: text("display_name"),
+  passwordHash: text("password_hash"), // login próprio (scrypt); null = conta antiga sem senha
   settings: jsonb("settings")
     .$type<{
       sound: number;
@@ -215,6 +216,7 @@ export const characters = pgTable(
       .$type<{ for: number; int: number; des: number }>()
       .default({ for: 0, int: 0, des: 0 })
       .notNull(),
+    isGm: boolean("is_gm").default(false).notNull(), // personagem GM: invulnerável, etiqueta [GM] no chat
     sub: jsonb("sub").$type<number[]>().default([0, 0, 0]).notNull(),
     // poderes: "learned" = aprendidos na Academia · "loadout" = os (até) 4 equipados para a luta · "infuse" = elemento (Z) da Infusão Elemental
     kit: jsonb("kit")
@@ -311,19 +313,8 @@ export const items = pgTable("items", {
       crit?: number; // Chance de Ruptura
       durability?: number;
       // status novos (todos opcionais, em %, exceto foco/refl):
-      res?: number;
-      mit?: number;
-      sifV?: number;
-      sifE?: number;
-      foco?: number;
-      refl?: number;
-      reg?: number;
-      imp?: number;
-      ten?: number;
-      ret?: number;
-      qg?: number;
-      rupD?: number;
-      pen?: number;
+      res?: number; mit?: number; sifV?: number; sifE?: number; foco?: number; refl?: number; reg?: number;
+      imp?: number; ten?: number; ret?: number; qg?: number; rupD?: number; pen?: number;
     }>()
     .notNull(), // jsonb: não precisa de migração para novos campos opcionais
   value: bigint("value", { mode: "number" }).notNull(), // valor econômico calculado
@@ -438,6 +429,8 @@ export const aiMonsters = pgTable(
     lore: text("lore").notNull(),
     archetype: text("archetype").notNull(), // tank | glass | balanced
     skillName: text("skill_name"),
+    kind: text("kind").default("mon").notNull(), // mon | sub | boss (monstros criados no /admin podem ser sub-chefes e chefes)
+    source: text("source").default("ia").notNull(), // ia | admin
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [uniqueIndex("ai_monsters_name_idx").on(t.mapSlug, t.name)],
@@ -520,3 +513,48 @@ export const partyMembers = pgTable(
   },
   (t) => [primaryKey({ columns: [t.partyId, t.characterId] })],
 );
+
+/* ───────────── PAINEL /admin: conteúdo criado pelo administrador ───────────── */
+export const customQuests = pgTable("custom_quests", {
+  id: text("id").primaryKey(), // "c_xxxxxx"
+  kind: text("kind").notNull(), // kill = derrotar N monstros · deliver = entregar N de um elemento
+  title: text("title").notNull(),
+  story: text("story").notNull(),
+  mapSlug: text("map_slug"), // kill: mapa onde conta (vazio = qualquer)
+  minLevel: integer("min_level").default(1).notNull(),
+  amount: integer("amount").default(10).notNull(),
+  elementZ: integer("element_z"), // deliver: número atômico
+  xpB: integer("xp_b").default(10).notNull(), // XP = monsterXp(nível) × xpB
+  gold: integer("gold").default(100).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const gameEvents = pgTable("game_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  description: text("description").default("").notNull(),
+  kind: text("kind").notNull(), // xp | gold | drop (multiplicador)
+  mult: real("mult").default(2).notNull(),
+  startsAt: timestamp("starts_at").notNull(),
+  endsAt: timestamp("ends_at").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const musicTracks = pgTable("music_tracks", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  url: text("url").notNull(), // "/music/arquivo.mp3" (pasta public/music) ou link https
+  context: text("context").notNull(), // home | cidade | batalha | reino
+  mapSlug: text("map_slug"), // opcional: só neste mapa
+  volume: integer("volume").default(70).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export const newsPosts = pgTable("news_posts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  pinned: boolean("pinned").default(false).notNull(),
+  published: boolean("published").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

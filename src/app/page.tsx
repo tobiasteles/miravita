@@ -1,6 +1,10 @@
 import Link from "next/link";
 import { LogoStack, ClassSeal } from "@/components/brand/Brand";
 import { bg } from "@/lib/img";
+import { latestNews } from "@/lib/game/live";
+import EventBanner from "@/components/game/EventBanner";
+import GameIcon from "@/components/game/GameIcon";
+export const dynamic = "force-dynamic";
 
 // vaga-lumes: posição, atraso e duração diferentes para cada um
 const FLIES = Array.from({ length: 14 }, (_, i) => ({
@@ -9,7 +13,8 @@ const FLIES = Array.from({ length: 14 }, (_, i) => ({
   t: 7 + (i % 5) * 2,
 }));
 
-export default function Home() {
+export default async function Home() {
+  const news = await latestNews(5); // notícias criadas em /admin/noticias
   return (
     <>
       {/* fundo: planície (usa /brand/login-bg se existir; senão o cenário do 1º mapa; senão o degradê) */}
@@ -58,9 +63,9 @@ export default function Home() {
         </p>
         <div className="my-8 flex justify-center gap-5">
           {[
-            ["fisica", "Destruidor"],
-            ["portugues", "Mago Arcano"],
-            ["historia", "Invocador de Eras"],
+            ["fisica", "Monitor Estelar"],
+            ["portugues", "Orador"],
+            ["historia", "Invocador"],
           ].map(([k, l]) => (
             <div key={k} className="flex flex-col items-center gap-1">
               <ClassSeal cls={k} size={72} />
@@ -74,6 +79,27 @@ export default function Home() {
         >
           Despertar
         </Link>
+
+        <div className="mt-6 flex justify-center"><EventBanner /></div>
+        {news.length > 0 && (
+          <section className="mt-8 space-y-3 text-left">
+            <h2 className="flex items-center justify-center gap-2 text-center text-sm font-bold uppercase tracking-widest text-cyan-300">
+              <GameIcon name="scroll" /> Notícias
+            </h2>
+            {news.map((n) => (
+              <article key={n.id} className="rounded-xl border border-violet-700/60 bg-[#12102c]/85 p-4 backdrop-blur">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-bold text-violet-100">
+                    {n.pinned && <GameIcon name="pin" className="mr-1 text-amber-300" />}
+                    {n.title}
+                  </h3>
+                  <time className="shrink-0 text-xs text-violet-400">{new Date(n.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</time>
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-violet-200">{n.body}</p>
+              </article>
+            ))}
+          </section>
+        )}
       </main>
     </>
   );

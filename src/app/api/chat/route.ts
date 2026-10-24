@@ -10,7 +10,7 @@ export async function GET(req: Request) {
     : ch === "local" ? (a.map ? and(eq(chatMessages.channel, "local"), eq(chatMessages.mapSlug, a.map.slug)) : sql`false`)
     : ch === "privado" ? and(eq(chatMessages.channel, "privado"), or(eq(chatMessages.characterId, me), eq(chatMessages.toCharacterId, me)))
     : and(eq(chatMessages.channel, "grito"), gt(chatMessages.createdAt, sql`now() - interval '10 minutes'`));
-  const rows = await db.select({ id: chatMessages.id, who: characters.name, to: t.name, text: chatMessages.content }).from(chatMessages)
+  const rows = await db.select({ id: chatMessages.id, who: sql<string>`case when ${characters.isGm} then '[GM] ' || ${characters.name} else ${characters.name} end`, to: t.name, text: chatMessages.content }).from(chatMessages)
     .innerJoin(characters, eq(chatMessages.characterId, characters.id)).leftJoin(t, eq(chatMessages.toCharacterId, t.id)).where(cond).orderBy(desc(chatMessages.createdAt)).limit(30);
   return NextResponse.json(rows.reverse());
 }
