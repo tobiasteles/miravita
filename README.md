@@ -1,75 +1,103 @@
-# Miravita
+<div align="center">
 
-1. `npm install`
-2. `cp .env.example .env.local` e preencha: `DATABASE_URL` (Neon) e as chaves do Clerk (clerk.com → API Keys).
-3. `npm run db:push` (cria as tabelas) e `npm run db:seed` (elementos, itens, classes, traços, mapas).
-4. `npm run dev` → http://localhost:3000
-5. Coloque os avatares em `public/avatars/class_<classe>_01..03.png`.
+# ⚔️ Miravita
 
-## Deploy na Vercel
-Suba para o GitHub, importe na Vercel e cadastre as 5 variáveis do `.env.example` em Settings → Environment Variables.
-Para produção em `miravita-three.vercel.app`, o SDK detecta o host da Vercel e usa o auto-proxy na URL de origem do app `https://miravita-three.vercel.app/__clerk`; o middleware roteia esse caminho sem exigir autenticação. Mantenha as variáveis automáticas de produção da Vercel e não defina um `domain` ou `proxyUrl` explícito no Clerk; não configure registros DNS para `vercel.app`.
-No ambiente Production da Vercel, use as chaves live do Clerk (`NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` com `pk_live_...` e `CLERK_SECRET_KEY` com `sk_live_...`) e faça um novo deploy após alterá-las. Os componentes de entrada usam os fluxos de e-mail habilitados no Clerk; códigos de verificação e de redefinição de senha podem usar a infraestrutura compartilhada `accounts.dev`. Para uma experiência totalmente com marca, modelos de e-mail personalizados, autenticação por link e convites por e-mail/organização, prefira um domínio próprio.
-Rode `db:push` e `db:seed` uma vez apontando para o banco de produção.
+**Um MMORPG que roda no navegador, com classes inspiradas em matérias escolares, itens baseados na tabela periódica e monstros gerados por IA.**
 
-## Já incluído
-Schema completo, auth (Clerk), criação/seleção/exclusão de até 6 personagens (limite atômico), traços e avatares por classe,
-curva de XP (`lib/game/xp.ts`), algoritmo de itens da tabela periódica (`lib/game/item-stats.ts`), mapas com nível mínimo e
-localização no painel, chat global (polling), menu ESC com configurações/seleção/desconectar.
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![Clerk](https://img.shields.io/badge/Auth-Clerk-6C47FF?logo=clerk&logoColor=white)](https://clerk.com)
+[![Neon](https://img.shields.io/badge/Neon-Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Gemini](https://img.shields.io/badge/IA-Gemini-4285F4?logo=googlegemini&logoColor=white)](https://ai.google.dev)
 
-## Combate, calabouços, forja e guildas
-Combate servidor-autoritativo (`src/actions/battle.ts`, estado na tabela `battles`), barra de timing, invocações (Humanas), portal com 4 ondas + chefe,
-forja (5 elementos → arma/armadura equipada automaticamente), guildas com patentes e chat privado.
-Para testar rápido, defina `XP_MULTIPLIER=30`. Depois de atualizar, rode `npm run db:push` (nova tabela `battles`).
+[**🎮 Jogar agora**](https://miravita-three.vercel.app/) · [Reportar um bug](../../issues)
 
-## IA (Gemini)
-`GEMINI_API_KEY` (aistudio.google.com/apikey), `GEMINI_MODEL` e `CRON_SECRET` nas variáveis da Vercel. Rode `npm install` e `npm run db:push`.
-O cron diário (`vercel.json`) chama `/api/cron/monsters`, que gera monstros e grava em `ai_monsters`. Teste manual:
-`curl -H "Authorization: Bearer $CRON_SECRET" https://SEU-APP/api/cron/monsters`
+<img src="https://i.imgur.com/mILBMh7.png" alt="Tela do Miravita" width="720" />
 
-## Telemetria e balanceamento por IA
-Cada luta grava uma linha em `battle_logs`. Toda segunda, `/api/cron/balance` agrega os últimos 7 dias (grupos com 30+ lutas), compara com as metas
-e pede sugestões ao Gemini, gravadas em `balance_suggestions`. Revise em `/admin/balance` (só IDs em `ADMIN_USER_IDS`). Rode `npm run db:push`.
+</div>
 
-## Painel do personagem e atalhos
-Na tela `/play`: Q missões, O inventário, T técnicas, G guilda, C chat, H habilidades (5 pontos por nível em FOR/INT/DES), M mapa. Rode `npm run db:push`.
-Teleporte: Humanas e Linguagens (mágicas) sem custo; Exatas gastam 1 Pedra de Teletransporte (150g ou missões secundárias).
+---
 
-## Imagens da batalha (estilo FireRed)
-- Monstros: `public/monsters/<nome-em-slug>.png` (ex.: `slime-de-cinza.png`, `sombra-soberana.png`; sem acentos, minúsculas, hífens; o 👑 do chefe é ignorado).
-- Personagem: `public/battle/player/<avatarId>.png` (opcional, ex.: de costas); se faltar, usa `public/avatars/<avatarId>.png`. Sem imagem, aparece um emoji.
-## Chat
-Local (mesmo mapa, 1 msg/2s), Privado (por nome, 1 msg/s), Gritar (todos os mapas, Nv.5+, 1 msg/30s, 80 letras, vale por 10 min), Guilda. Máx. 20 msgs/min por personagem. Rode `npm run db:push`.
+## ✨ O que é
 
-## Energia Arcana, domínios, grupos e caçadas
-"Mana/MP" virou **Energia Arcana (EA)** na interface. Se já rodou o seed, atualize o traço: `update traits set description='+20% EA' where id='criativo';`
-Domínios (3 por classe, 1 ponto por nível, máx. 20) em `/attributes`; grupos de até 4 dentro da guilda (+10% XP por aliado no mesmo mapa, chat "Grupo");
-caçadas (matar N monstros do mapa) em `/quests`. Rode `npm run db:push`.
+Miravita é um RPG online em que você cria personagens, explora mapas, luta em calabouços, forja equipamentos e entra em guildas. A ideia é unir a diversão de um jogo de fantasia com elementos pedagógicos: as **11 classes** vêm de disciplinas (Matemática, Física, Química, Português, Literatura, Inglês, Artes, História, Geografia, Filosofia e Biologia) e os **itens são gerados a partir dos elementos da tabela periódica**.
 
-## Hierarquia de técnicas e Expansão Arcana
-Técnicas em níveis Fundamental (<50), Médio (50–119) e Superior (120+). No Superior, cada classe tem sua técnica suprema (Nv. 150): Horizonte de Eventos (Exatas),
-Panteão das Eras (Humanas), Grimório Absoluto (Linguagens). Nomes em `DOMAINS`/`DOMAIN_TERM` em `src/lib/game/battle.ts`. Não há mudança de banco.
+## 🎮 Funcionalidades
 
-## Técnica suprema personalizável (Nv. 150)
-O jogador dá o nome, escolhe o grito de ativação e um dos 4 aspectos da sua classe (`ASPECTS`): cada um muda o efeito da barreira (paralisia, cura, recuperar EA, mais dano com custo de HP...).
-Maestria 0–10 (+1 a cada 5 usos: +5% de poder, -2% de custo). Reforjar custa 10.000g e mantém a maestria. Rode `npm run db:push` (coluna `domain`).
+- **Personagens:** até 6 por conta, com traços, avatar por classe e curva de XP
+- **Combate servidor-autoritativo:** o estado da luta fica no banco, com barra de timing e invocações
+- **Calabouços:** portal com 4 ondas e chefe
+- **Forja:** combine 5 elementos para gerar arma ou armadura, com atributos calculados pela tabela periódica
+- **Guildas e grupos:** patentes, chat privado, grupos de até 4 jogadores e bônus de XP por aliado no mesmo mapa
+- **Técnicas e domínios:** hierarquia de técnicas e uma **técnica suprema personalizável** no nível 150 (nome, grito e aspecto)
+- **Missões e caçadas**, mapas com nível mínimo e teleporte
+- **Chat:** local, privado, global (gritar) e de guilda, com limite de mensagens
+- **Atalhos no jogo:** `Q` missões · `O` inventário · `T` técnicas · `G` guilda · `C` chat · `H` habilidades · `M` mapa
 
-## Identidade visual
-Emblema "Olho do Desperto", logo, selos de classe (Exatas/Humanas/Linguagens), paleta e tipografia (Cinzel). Guia em `/brand`; SVGs para download em `public/brand/`;
-favicon (`src/app/icon.svg`) e imagem de compartilhamento (`opengraph-image.tsx`). Componentes em `src/components/brand/Brand.tsx`; fonte dos desenhos em `src/lib/brand.ts`.
+## 🤖 IA no jogo (Gemini)
 
-## Imagens conectadas
-Coloque os arquivos em `public/`: `avatars/`, `battle/player/`, `monsters/`, `items/` (mat-/blade-/armor-<simbolo>, potion, teleport-stone), `maps/<slug>.png` (batalha, painel e mapa),
-`npcs/`, `summons/`, `story/m1..m8.png`, `domains/<aspecto>.png`, `skills/<classe>-<1..6>.png`, `brand/key-art.png` e `brand/levelup-banner.png`.
-O jogo aceita .png, .jpg, .jpeg e .webp (tenta nessa ordem). Para sprites/itens que precisam de fundo transparente: `python tools/converter-imagens.py`.
-Se um arquivo não existir, o jogo usa emoji ou o fundo padrão (componente `SafeImg`).
+- **Monstros gerados por IA:** um cron diário chama `/api/cron/monsters` e grava novos monstros no banco
+- **Balanceamento assistido:** cada luta gera telemetria (`battle_logs`). Toda segunda, um cron agrega os dados e pede sugestões de ajuste ao Gemini, que podem ser revisadas em `/admin/balance`
 
-## Tema sem "ensino"
-Classes exibidas como **Duelista** (exatas), **Invocador** (humanas) e **Mago** (linguagens); as chaves internas e os nomes dos arquivos de imagem continuam os mesmos.
-Se o banco já estava populado: `update maps set name='Pântano Sombrio' where slug='pantano-radioativo';`
+## 🛠️ Stack
 
-## 11 classes
-Espadachins: Mestre da Precisão, Destruidor, Lâmina Elemental. Magos: Mago Arcano, Ilusionista, Mago das Runas, Mago da Luz. Invocadores: Invocador de Eras, da Terra, de Ideias, Mestre de Feras.
-Passiva de todos: Condicionamento Físico (+10% HP, +3% esquiva). Rode `npm run db:push` e `npm run db:seed`. Para migrar personagens antigos:
-`update characters set class_key='fisica' where class_key='exatas'; update characters set class_key='historia' where class_key='humanas'; update characters set class_key='portugues' where class_key='linguagens';`
-Imagens: `class_<chave>_0N.png` com as chaves matematica, fisica, quimica, portugues, literatura, ingles, artes, historia, geografia, filosofia, biologia.
+| Camada         | Tecnologias                                         |
+| -------------- | --------------------------------------------------- |
+| Framework      | Next.js 15 (App Router, Server Actions) e React 19  |
+| Linguagem      | TypeScript                                          |
+| Estilo         | Tailwind CSS 4                                      |
+| Autenticação   | Clerk                                               |
+| Banco de dados | PostgreSQL no Neon com Drizzle ORM                  |
+| IA             | Google Gemini (`@google/genai`)                     |
+| Deploy         | Vercel (com Cron Jobs)                              |
+
+## 🧪 Rodando localmente
+
+```bash
+git clone https://github.com/tobiasteles/miravita.git
+cd miravita
+npm install
+
+cp .env.example .env.local   # preencha as variáveis abaixo
+
+npm run db:push              # cria as tabelas
+npm run db:seed              # elementos, itens, classes, traços e mapas
+npm run dev                  # http://localhost:3000
+```
+
+### Variáveis de ambiente
+
+| Variável                                                   | Descrição                                          |
+| ---------------------------------------------------------- | -------------------------------------------------- |
+| `DATABASE_URL`                                             | Connection string do Neon                          |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`   | Chaves do Clerk                                    |
+| `GEMINI_API_KEY` / `GEMINI_MODEL`                          | Chave e modelo do Gemini                           |
+| `CRON_SECRET`                                              | Segredo que protege as rotas de cron               |
+| `ADMIN_USER_IDS`                                           | IDs do Clerk (`user_...`) com acesso ao `/admin`   |
+| `XP_MULTIPLIER`                                            | Use `30` para testar rápido; `1` é o ritmo real    |
+
+> 💡 Para testar a IA manualmente:
+> `curl -H "Authorization: Bearer $CRON_SECRET" https://SEU-APP/api/cron/monsters`
+
+## 📁 Estrutura
+
+```
+src/
+├── actions/     # regras do jogo no servidor (batalha, guilda, forja, missões...)
+├── app/         # rotas: jogo, personagens, admin, brand e API (chat, cron)
+├── components/  # interface do jogo e da identidade visual
+├── db/          # schema Drizzle e seeds
+└── lib/         # XP, itens da tabela periódica, IA, imagens
+```
+
+## 🧠 Decisões de projeto
+
+- **Servidor como fonte da verdade:** o combate acontece no servidor, então o cliente não consegue forjar resultados
+- **Itens com lógica própria:** os atributos vêm de propriedades dos elementos químicos (`lib/game/item-stats.ts`)
+- **Imagens com fallback:** o componente `SafeImg` troca por emoji ou fundo padrão quando um arquivo não existe
+
+## 👤 Autor
+
+**Tobias Teles** · [Portfólio](https://tobiasteles.vercel.app) · [LinkedIn](https://www.linkedin.com/in/tobias-teles/)
+
+Se curtiu o projeto, deixe uma ⭐!
