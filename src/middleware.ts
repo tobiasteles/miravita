@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { readToken, SESSION_COOKIE } from "@/lib/auth-token";
 // páginas e APIs que exigem login (sem sessão válida → vai para /sign-in)
-const PRIV = ["/characters", "/play", "/api/chat", "/admin", "/map", "/gate", "/atividades", "/battle", "/skills", "/attributes", "/inventory", "/shop", "/quests", "/guild", "/party"];
+const PRIV = ["/characters", "/play", "/api/chat", "/admin", "/map", "/gate", "/arena", "/atividades", "/battle", "/skills", "/attributes", "/inventory", "/shop", "/quests", "/guild", "/party"];
 export async function middleware(req: NextRequest) {
   const p = req.nextUrl.pathname;
   if (!PRIV.some((x) => p === x || p.startsWith(x + "/"))) return NextResponse.next();

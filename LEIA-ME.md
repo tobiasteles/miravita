@@ -1,8 +1,5 @@
-# Painel /admin
+# Artes dos itens novos (pixel art 32x32)
 
-Pré-requisito: o pacote "sem Clerk" já aplicado (o painel usa o login novo).
-
-1. Extraia por cima do projeto.
-2. `.env.local`: `ADMIN_EMAILS=seu@email.com` (e o mesmo na Vercel).
-3. `npm run db:push` (cria 4 tabelas e 3 colunas novas; se perguntar "created or renamed", escolha create).
-4. `npm run dev` e abra http://localhost:3000/admin
+Extraia por cima do projeto (public/items + tools). Depois rode `npm run imagens` (ou `npm run dev`) para o jogo enxergar os arquivos novos.
+Contém: materiais e peças (blade/armor/helm/boots/gauntlets) dos 104 elementos novos, grimórios/orbes/cajados dos 118 elementos e os 42 trajes de batalha.
+Para refazer ou ajustar cores: `pip install pillow` e `python tools/gerar-itens-pixel-v2.py --tudo --previa`.

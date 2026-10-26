@@ -55,8 +55,8 @@ export default async function Home() {
         ))}
       </div>
 
-      <main className="relative mx-auto max-w-md px-6 py-14 text-center">
-        <LogoStack />
+      <main className="relative mx-auto max-w-md px-4 py-8 text-center sm:px-6 sm:py-14">
+        <LogoStack size={104} />
         <p className="mx-auto mt-6 max-w-xs text-violet-100 [text-shadow:0_2px_12px_#000]">
           Seja um Desperto: reúna o poder despedaçado, enfrente portais e forje
           a sua técnica suprema.

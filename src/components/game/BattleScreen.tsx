@@ -99,7 +99,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
       await battleAct(a);
       setMenu("main");
       setTl(null);
-      if (a.a === "end") r.push("/play");
+      if (a.a === "end") r.push(b.pvp ? "/arena" : "/play");
       else r.refresh();
     });
   useEffect(() => {
@@ -190,6 +190,13 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           </div>
         ) : null}
         {b.ambush && <div className="absolute right-2 top-2 z-10 rounded bg-rose-900/90 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-200">EMBOSCADA NA ESTRADA</div>}
+        {b.pvp && (
+          <div className="absolute right-2 top-2 z-10 rounded bg-black/70 px-2 py-1 text-right font-mono text-[10px] text-amber-200">
+            <div className="font-bold text-rose-300">ARENA PvP{b.pvp.npc ? " · treino" : ""}</div>
+            <div>{b.pvp.name} · Nv. {b.pvp.lv}</div>
+            {(b.t ?? 0) > 0 && <div>turno {b.t}/30</div>}
+          </div>
+        )}
         {b.endless && b.run && (
           <div className="absolute right-2 top-2 z-10 rounded bg-black/70 px-2 py-1 text-right font-mono text-[10px] text-amber-200">
             <div>Caçada · {b.run.kills} derrotados</div>
@@ -373,7 +380,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
               <button className={m} onClick={() => setMenu("sk")}>
                 <GameIcon name="swords" /> LUTAR
               </button>
-              <button disabled={pend} className={m} onClick={() => setMenu("it")}>
+              <button disabled={pend || !!b.pvp} title={b.pvp ? "Poções são proibidas na Arena" : ""} className={m} onClick={() => setMenu("it")}>
                 <GameIcon name="flask" /> ITEM
               </button>
               <button disabled={pend} className={m} onClick={() => act({ a: "flee" })}>

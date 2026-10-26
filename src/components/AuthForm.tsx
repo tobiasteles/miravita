@@ -6,9 +6,9 @@ export default function AuthForm({ mode, action, error, next }: { mode: "in" | "
   const inp = "w-full rounded-lg border border-violet-700 bg-[#0c0a1f] px-3 py-2 outline-none focus:border-cyan-400";
   const up = mode === "up";
   return (
-    <main className="mx-auto grid min-h-screen max-w-sm place-items-center p-6">
-      <form action={action} className="w-full space-y-3 rounded-2xl border border-violet-700/60 bg-[#171433]/95 p-6 shadow-[0_0_40px_#8b5cf655]">
-        <div className="flex justify-center"><LogoStack /></div>
+    <main className="mx-auto grid min-h-screen w-full max-w-sm place-items-center p-4 sm:p-6">
+      <form action={action} className="w-full min-w-0 space-y-3 overflow-hidden rounded-2xl border border-violet-700/60 bg-[#171433]/95 p-5 sm:p-6 shadow-[0_0_40px_#8b5cf655]">
+        <div className="flex justify-center"><LogoStack size={96} /></div>
         <h1 className="text-center text-xl font-bold">{up ? "Criar conta" : "Entrar"}</h1>
         {error && <p role="alert" className="rounded border border-rose-600 bg-rose-950/50 p-2 text-sm text-rose-200">{error}</p>}
         <input type="hidden" name="next" value={next ?? ""} />

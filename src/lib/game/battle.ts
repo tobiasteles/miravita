@@ -19,6 +19,11 @@ export type Mon = {
   dt?: "fis" | "arc"; // tipo de dano: usa Defesa Física ou Defesa Mágica do jogador
   rs?: number; // resistência a status (atordoar etc.): Penetração de Status reduz
   pat?: ("carga" | "couraca" | "furia")[]; // padrões de chefe (ver step)
+  // ARENA PvP: "fantasma" de outro personagem (controlado pelo servidor com os poderes que ele equipou)
+  pvp?: {
+    cls: string; dfF: number; dfM: number; mit: number; rup: number; rupD: number; mp: number; reg: number; sifV: number; evM: number;
+    sk: { n: string; t: string; p: number; pa: number; c: number; cr: number }[];
+  };
 };
 export type BState = {
   e: Mon;
@@ -63,6 +68,9 @@ export type BState = {
   endless?: boolean; // Portão da Cidade: caçada contínua
   run?: { kills: number; xp: number; gold: number; heat: number };
   ambush?: boolean; // encontro aleatório na estrada
+  // ─── Arena PvP ───
+  pvp?: { cid: string | null; name: string; cls: string; lv: number; npc: boolean; rating: number };
+  gpa?: number; gmp?: number; gveil?: number; gbuf?: number; gshield?: number; gshieldT?: number; // recursos e efeitos do fantasma
 };
 export type Act =
   | { a: "domain" }
@@ -309,15 +317,22 @@ const L = (b: BState, t: string) => {
 // estados antigos (salvos antes da atualização) ganham os campos novos
 export function norm(b: BState, q: Stats) {
   b.pa ??= PA_MAX; b.used ??= {}; b.aegis ??= 0; b.aegisT ??= 0; b.eDef ??= 0; b.sifT ??= 0; b.charge ??= 0; b.et ??= 0;
-  b.buf ??= 0; b.cu ??= 0; b.ev ??= 0; b.burn ??= 0;
+  b.buf ??= 0; b.cu ??= 0; b.ev ??= 0; b.burn ??= 0; b.gveil ??= 0; b.gbuf ??= 0; b.gshield ??= 0; b.gshieldT ??= 0;
   const e = b.e; e.refl ??= 3 + 1.2 * e.L; e.acc ??= 40 + 1.5 * e.L; e.dt ??= "fis"; e.rs ??= e.boss ? 0.5 : 0.25;
   void q;
 }
 const dec = (b: BState, k: "buf" | "cu" | "ev" | "eDef" | "sifT" | "aegisT" | "burn") => { if ((b[k] ?? 0) > 0) b[k] = (b[k] ?? 0) - 1; };
 // defesa efetiva do inimigo: Quebra de Guarda (poder) ×0,35 · Quebra de Guarda (status) -%
-const eDefOf = (b: BState, q: Stats) => b.e.def * ((b.eDef ?? 0) > 0 ? 0.35 : 1) * (1 - q.qg / 100);
+const eDefOf = (b: BState, q: Stats) =>
+  (b.e.pvp ? (q.main === "fis" ? b.e.pvp.dfF : b.e.pvp.dfM) : b.e.def) * ((b.eDef ?? 0) > 0 ? 0.35 : 1) * (1 - q.qg / 100);
 // Couraça (padrão de chefe): corta pela metade TODO o dano recebido enquanto a guarda não for quebrada
-const armor = (b: BState) => (b.e.pat?.includes("couraca") && !((b.eDef ?? 0) > 0) ? 0.5 : 1);
+// no PvP todo dano é multiplicado por PVP_SCALE (duelos de ~8 turnos em vez de 1–2). Mexa aqui para duelos mais curtos/longos.
+export const PVP_SCALE = 0.16;
+// no PvP o multiplicador dos poderes é "comprimido" (poder 10 vira ~3,7) para os duelos terem o mesmo ritmo em qualquer nível
+export const pvpP = (p: number) => (p > 1 ? 1 + (p - 1) * 0.3 : p);
+export const DUEL_TURNS = 30; // limite de turnos de um duelo
+export const GHOST_SKILL = 1.9; // o fantasma não joga a barra de acerto: assume o timing médio de um jogador
+const armor = (b: BState) => (b.e.pat?.includes("couraca") && !((b.eDef ?? 0) > 0) ? 0.5 : 1) * (b.e.pvp ? PVP_SCALE * (1 - clamp(b.e.pvp.mit, 0, 60) / 100) : 1); // chefe: Couraça · fantasma: Mitigação
 const powerOf = (b: BState, q: Stats) => q.atk * (b.buf > 0 ? 1.5 : 1) * (1 + (q.main === "fis" ? q.resF : q.resA) / 100);
 // ───── Infusão Elemental (Elemental): efeito por categoria do elemento ─────
 export const RX_INFO: Record<string, string> = {
@@ -338,6 +353,16 @@ export function step(
   if (b.over) return;
   norm(b, q);
   const e = b.e;
+  // dano no inimigo (o fantasma pode ter uma Barreira Aegis que absorve primeiro)
+  const hurtE = (d: number) => {
+    if ((b.gshield ?? 0) > 0) {
+      const ab = Math.min(b.gshield!, d);
+      b.gshield! -= ab;
+      d -= ab;
+    }
+    e.hp -= d;
+    return d;
+  };
   const fin = () => {
     if (e.hp <= 0) {
       b.over = b.endless ? "wave" : b.q.length ? "wave" : "win"; // grind infinito nunca "vence": sempre vem o próximo monstro
@@ -354,6 +379,13 @@ export function step(
     (["buf", "cu", "ev", "eDef", "sifT", "burn"] as const).forEach((k) => dec(b, k));
     dec(b, "aegisT");
     if (!b.aegisT) b.aegis = 0;
+    if (e.pvp) {
+      b.gpa = Math.min(PA_MAX, (b.gpa ?? PA_MAX) + PA_REGEN);
+      b.gmp = Math.min(e.pvp.mp, (b.gmp ?? e.pvp.mp) + Math.round(e.pvp.mp * 0.015));
+      e.hp = Math.min(e.mx, e.hp + Math.round((e.mx * e.pvp.reg) / 100)); // Regeneração Inerente do fantasma
+      for (const k of ["gveil", "gbuf", "gshieldT"] as const) if ((b[k] ?? 0) > 0) b[k] = (b[k] ?? 0) - 1;
+      if (!b.gshieldT) b.gshield = 0;
+    }
   };
   // ───────── AÇÃO DO JOGADOR ─────────
   if (act.a === "skill") {
@@ -391,24 +423,26 @@ export function step(
       b.aegisT = 4;
       L(b, `${s.n}: Barreira Aegis de ${b.aegis} por 4 turnos.`);
     } else if (s.t === "sv") {
-      b.sv = { n: s.n, p: s.p, t: 3 };
+      b.sv = { n: s.n, p: e.pvp ? pvpP(s.p) : s.p, t: 3 };
       L(b, `Você invocou ${s.n}!`);
     } else {
       const m = clamp(act.m, 1, 2), perfect = m >= 1.99;
-      const hitP = clamp((0.95 * q.foco) / (q.foco + 0.35 * (e.refl ?? 0)), 0.55, 0.98);
-      if (!perfect && Math.random() > hitP) {
+      const hitP = clamp((0.95 * q.foco) / (q.foco + 0.35 * (e.refl ?? 0)), 0.55, 0.98) * ((b.gveil ?? 0) > 0 ? 0.55 : 1); // Véu do fantasma: -45% de acerto
+      if (e.pvp && q.main === "arc" && Math.random() * 100 < e.pvp.evM * 0.5) {
+        L(b, `${s.n}: a Evasão Mágica de ${e.n} dissipou o feitiço!`);
+      } else if (!perfect && Math.random() > hitP) {
         L(b, `${s.n}: ${e.n} esquivou! (Foco ${Math.round(hitP * 100)}%)`);
       } else {
-        const pw = s.t === "nuke" ? s.p * (1 + 0.6 * (spent / q.mp)) : s.p;
+        const pw0 = s.t === "nuke" ? s.p * (1 + 0.6 * (spent / q.mp)) : s.p, pw = e.pvp ? pvpP(pw0) : pw0;
         const cr = perfect || Math.random() * 100 < q.rup + (s.cr ?? 0) + (b.rx?.cat === "metaloide" ? 10 * b.rx.pw : 0);
         const power = powerOf(b, q);
         let d = power * pw * m * rf(0.92, 1.08) * defF(eDefOf(b, q), e.L) * armor(b);
-        d = Math.max(d, power * (q.estab / 100) * (1 + s.p * 0.25)); // Estabilidade de Dano
+        d = Math.max(d, power * (q.estab / 100) * (1 + s.p * 0.25) * (e.pvp ? PVP_SCALE : 1)); // Estabilidade de Dano (no PvP também é reduzida)
         if (cr) d *= 1 + q.rupD / 100;
         if (e.boss) d *= 1 + q.imp / 100; // Ímpeto de Caçador
         if (cls === "quimica" || b.rx) d *= 1 + rxDmg(b);
         d = Math.max(1, Math.round(d));
-        e.hp -= d;
+        hurtE(d);
         const sv = q.sifV + ((b.sifT ?? 0) > 0 ? 12 : 0) + (b.rx?.cat === "não-metal" ? 6 * b.rx.pw : 0);
         if (sv) p.hp = Math.min(q.hp, p.hp + Math.round((d * sv) / 100)); // Sifão Vital
         if (q.sifE) p.mp = Math.min(q.mp, p.mp + Math.min(Math.round(q.mp * 0.08), Math.round((d * q.sifE) / 100))); // Sifão de Essência
@@ -454,12 +488,78 @@ export function step(
   }
   return afterPlayer();
 
+  // ───────── turno do FANTASMA (Arena PvP): usa os poderes equipados do dono, com PA e EA limitados ─────────
+  function ghostTurn() {
+    const g = e.pvp!;
+    b.gpa ??= PA_MAX;
+    b.gmp ??= g.mp;
+    const aff = g.sk.filter((s) => b.gpa! >= s.pa && b.gmp! >= s.c), has = (t: string) => aff.find((s) => s.t === t);
+    const dmg = aff.filter((s) => ["d", "dot", "bq", "st", "sv"].includes(s.t)).sort((x, y) => y.p - x.p);
+    let a = null as (typeof g.sk)[number] | null | undefined;
+    if (!(b.gshieldT ?? 0) && has("ag") && e.hp < e.mx * 0.7 && Math.random() < 0.7) a = has("ag");
+    else if (!(b.gveil ?? 0) && has("e") && Math.random() < 0.25) a = has("e");
+    else if (!(b.gbuf ?? 0) && has("b") && Math.random() < 0.6) a = has("b");
+    else a = Math.random() < 0.7 ? dmg[0] : dmg[Math.floor(Math.random() * Math.min(2, dmg.length))] ?? dmg[0];
+    if (!a) a = { n: "Golpe básico", t: "d", p: 0.8, pa: 0, c: 0, cr: 0 };
+    b.gpa! -= a.pa;
+    b.gmp! -= a.c;
+    if (a.t === "ag") {
+      b.gshield = Math.round(e.mx * 0.3);
+      b.gshieldT = 4;
+      L(b, `${e.n} usa ${a.n}: Barreira Aegis!`);
+    } else if (a.t === "e") {
+      b.gveil = 3;
+      L(b, `${e.n} usa ${a.n}: fica difícil de acertar!`);
+    } else if (a.t === "b") {
+      b.gbuf = 3;
+      L(b, `${e.n} usa ${a.n}: Poderio ×1,5!`);
+    } else {
+      const dodge = clamp((0.45 * q.refl) / (q.refl + (e.acc ?? 40)), 0, 0.4) + 0.03;
+      if (((b.ev ?? 0) > 0 && Math.random() < 0.6) || Math.random() < dodge) L(b, `Você esquivou de ${a.n}!`);
+      else if (e.dt === "arc" && Math.random() * 100 < q.evM * 0.5) L(b, `Sua Evasão Mágica dissipou ${a.n}!`);
+      else {
+        const mult = pvpP(a.p) * (a.t === "sv" ? 3 : a.t === "dot" ? 1.9 : 1);
+        let d = e.atk * ((b.gbuf ?? 0) > 0 ? 1.5 : 1) * mult * rf(0.9, 1.1) * defF(e.dt === "arc" ? q.dfM : q.dfF, e.L);
+        const cr = Math.random() * 100 < g.rup + a.cr;
+        if (cr) d *= 1 + g.rupD / 100;
+        d = Math.max(1, Math.round(d * PVP_SCALE * GHOST_SKILL * (1 - clamp(q.mit, 0, 60) / 100)));
+        const full = d;
+        if ((b.aegis ?? 0) > 0) {
+          const ab = Math.min(b.aegis!, d);
+          b.aegis! -= ab;
+          d -= ab;
+          L(b, `Barreira Aegis absorveu ${ab}.`);
+        }
+        p.hp -= d;
+        L(b, `${e.n} usa ${a.n}: ${d} de dano${cr ? " 💥RUPTURA" : ""}`);
+        if (g.sifV) e.hp = Math.min(e.mx, e.hp + Math.round((d * g.sifV) / 100)); // Sifão Vital do fantasma
+        const ret = q.ret + ((b.aegisT ?? 0) > 0 ? 15 : 0);
+        if (ret > 0) hurtE(Math.round((full * ret) / 100));
+        if (a.t === "st" && p.hp > 0 && Math.random() < 0.35 && Math.random() * 100 >= q.ten) {
+          b.pStun = true;
+          L(b, "Você foi atordoado! Perderá o próximo turno.");
+        }
+      }
+    }
+    if (fin()) return;
+    if (p.hp <= 0) {
+      p.hp = 0;
+      b.over = "lose";
+    }
+    endTurn();
+    if (!b.over && (b.t ?? 0) >= DUEL_TURNS) {
+      // tempo esgotado: vence quem tem mais % de vida
+      b.over = p.hp / q.hp >= e.hp / e.mx ? "win" : "lose";
+      L(b, "Tempo esgotado! Vence quem tem mais vida restante.");
+    }
+  }
+
   // ───────── RESTO DO TURNO: aliados, dano contínuo, Despertar, inimigo ─────────
   function afterPlayer() {
     if (fin()) return;
     if (b.sv && b.sv.t > 0) {
       const d = Math.max(1, Math.round(q.atk * b.sv.p * (1 + q.sv) * rf(0.9, 1.1) * defF(eDefOf(b, q), e.L) * armor(b)));
-      e.hp -= d;
+      hurtE(d);
       b.sv.t--;
       L(b, `${b.sv.n} ataca: ${d}`);
       if (b.sv.t <= 0) b.sv = null;
@@ -467,7 +567,7 @@ export function step(
     }
     if (b.dot) {
       const dd = Math.max(1, Math.round(q.atk * b.dot.p * rf(0.9, 1.1) * defF(eDefOf(b, q), e.L) * armor(b)));
-      e.hp -= dd;
+      hurtE(dd);
       b.dot.t--;
       L(b, `🔥 Dano contínuo: ${dd}`);
       if (b.dot.t <= 0) b.dot = null;
@@ -478,7 +578,7 @@ export function step(
     if (dmn) {
       // barreira: acerto garantido (ignora DEF) + efeitos do aspecto; ao fim, Sobrecarga
       const dd = Math.round(q.atk * dmn.p * (e.boss ? 0.75 : 1) * rf(0.95, 1.05));
-      e.hp -= dd;
+      hurtE(dd);
       dmn.t--;
       L(b, `🌀 ${dmn.n}: acerto garantido, ${dd} de dano`);
       if (dmn.heal) p.hp = Math.min(q.hp, p.hp + Math.round(q.hp * dmn.heal));
@@ -503,6 +603,7 @@ export function step(
       L(b, `${e.n} está atordoado!`);
       return endTurn();
     }
+    if (e.pvp) return ghostTurn();
     const pats = e.pat ?? [],
       enraged = pats.includes("furia") && e.hp < e.mx * 0.3;
     b.et = (b.et ?? 0) + 1;

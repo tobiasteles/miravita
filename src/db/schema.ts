@@ -558,3 +558,25 @@ export const newsPosts = pgTable("news_posts", {
   published: boolean("published").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+/* ───────────── ARENA PvP ───────────── */
+export const pvpRatings = pgTable("pvp_ratings", {
+  characterId: uuid("character_id").primaryKey().references(() => characters.id, { onDelete: "cascade" }),
+  rating: integer("rating").default(1000).notNull(),
+  wins: integer("wins").default(0).notNull(),
+  losses: integer("losses").default(0).notNull(),
+  streak: integer("streak").default(0).notNull(), // sequência de vitórias (negativo = derrotas seguidas)
+  day: text("day").default("").notNull(), // dia (Brasília) em que "fightsToday" vale
+  fightsToday: integer("fights_today").default(0).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+export const pvpFights = pgTable("pvp_fights", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  attackerId: uuid("attacker_id").notNull(),
+  defenderId: uuid("defender_id").notNull(),
+  attackerName: text("attacker_name").notNull(),
+  defenderName: text("defender_name").notNull(),
+  attackerWon: boolean("attacker_won").notNull(),
+  delta: integer("delta").notNull(), // pontos de rating que o atacante ganhou/perdeu
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});

@@ -2,7 +2,7 @@
 // Coordenadas em % de um quadro 16:10 (1600×1000). TODOS os mapas usam o mesmo layout: só muda o background (public/town/<slug>.png).
 // x,y = centro do prédio · w,h = tamanho da área clicável. Se quiser ajustar um prédio, mexa só aqui.
 import type { IconName } from "@/components/game/GameIcon";
-export type SpotKind = "link" | "rest" | "hunt" | "gate" | "realm" | "soon";
+export type SpotKind = "link" | "rest" | "hunt" | "gate" | "arena" | "realm" | "soon";
 export type Spot = {
   id: string;
   label: string; // texto que aparece sobre o prédio
@@ -29,7 +29,7 @@ export const SPOTS: Spot[] = [
   // ── fileira do meio (o centro é a praça, sem prédio) ──
   { id: "conveniencia", label: "Conveniência", icon: "flask", merchant: "Doutor Vex", npc: "doutor-vex", line: "Poções, armas mágicas, trajes de batalha e reagentes.", x: 13, y: 54, w: 16, h: 22, kind: "link", href: "/shop/conveniencia", glow: "#34d399" },
   { id: "atividades", label: "Atividades", icon: "pick", merchant: "Guia Aventureiro", npc: "guia-aventureiro", line: "Expedições, escavação e laboratório: tudo para fazer com o Reino fechado.", x: 31, y: 58, w: 15, h: 20, kind: "link", href: "/atividades", glow: "#34d399" },
-  { id: "arena", label: "Combate PvP", icon: "swords", merchant: "Mestre da Arena", npc: "mestre-da-arena", line: "Em breve: duelos entre jogadores!", x: 78, y: 56, w: 26, h: 30, kind: "soon", glow: "#ef4444" },
+  { id: "arena", label: "Arena PvP", icon: "swords", merchant: "Mestre da Arena", npc: "mestre-da-arena", line: "Duele com o fantasma de outros jogadores e suba no ranking!", x: 78, y: 56, w: 26, h: 30, kind: "arena", href: "/arena", glow: "#ef4444" },
   // ── fileira de baixo ──
   { id: "forja", label: "Mochila e Forja", icon: "backpack", merchant: "Hakim das Relíquias", npc: "hakim-reliquias", line: "Guarde seus itens e forje equipamentos.", x: 15, y: 81, w: 16, h: 20, kind: "link", href: "/inventory", glow: "#fbbf24" },
   { id: "taverna", label: "Taverna", icon: "mug", merchant: "Dona Brasa", npc: "dona-brasa", line: "Descanse! Recupera todo o seu HP e EA.", x: 35, y: 81, w: 16, h: 20, kind: "rest", glow: "#f472b6" },

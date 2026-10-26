@@ -36,9 +36,9 @@ export default async function Play() {
   return (
     <main className="mx-auto flex max-w-[1900px] flex-col gap-2 p-2 lg:h-dvh lg:overflow-hidden lg:p-3">
       {/* ----- topo: logo + personagem ----- */}
-      <header className="flex shrink-0 flex-wrap items-center gap-3 lg:flex-nowrap">
-        <Logo size={30} />
-        <section className="relative flex min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-2xl border border-violet-700/50 bg-[#171433] p-2">
+      <header className="flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+        <div className="pr-12 lg:pr-0"><Logo size={26} /></div>
+        <section className="relative flex w-full min-w-0 flex-1 items-center gap-3 overflow-hidden rounded-2xl border border-violet-700/50 bg-[#171433] p-2">
           <SafeImg
             src={`/avatars/${c.avatarId}.png`}
             alt={c.avatarId}
@@ -99,6 +99,10 @@ export default async function Play() {
           <Link href="/gate" className="town-hunt relative flex items-center gap-3 rounded-xl border-2 border-rose-500 bg-rose-950/40 p-3 transition hover:bg-rose-900/40">
             <GameIcon name="swords" size="1.9rem" className="text-rose-300" />
             <div className="min-w-0 flex-1"><div className="font-bold">Portão da Cidade</div><div className="truncate text-xs text-rose-200">Caçada contínua em {mapName}</div></div>
+          </Link>
+          <Link href="/arena" className="relative flex items-center gap-3 rounded-xl border-2 border-amber-500/70 bg-amber-950/20 p-3 transition hover:bg-amber-900/30">
+            <GameIcon name="trophy" size="1.9rem" className="text-amber-300" />
+            <div className="min-w-0 flex-1"><div className="font-bold">Arena PvP</div><div className="truncate text-xs text-amber-200">Duelos e ranking</div></div>
           </Link>
           <Tile
             icon={<GameIcon name="portal" className="text-violet-300" />}

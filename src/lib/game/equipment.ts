@@ -137,3 +137,14 @@ export const STAT_TXT: Record<string, string> = {
 const PCT = new Set(["crit", "res", "mit", "sifV", "sifE", "reg", "imp", "ten", "ret", "qg", "rupD", "pen"]);
 export const statLine = (s: Record<string, number | undefined>) =>
   Object.entries(s).filter(([k, v]) => k !== "durability" && v).map(([k, v]) => `${STAT_TXT[k] ?? k} +${v}${PCT.has(k) ? "%" : ""}`).join(" · ");
+
+// caminho do ícone de um item: arma mágica (grimorio/orbe/cajado), traje (traje-<classe>-<nível>) ou peça comum (blade/armor/...)
+export function itemIcon(it: { type: string; slot: string | null; name: string }, symbol?: string | null): string {
+  const sym = (symbol ?? "").toLowerCase();
+  if (it.slot && it.slot in WEAPONS) return `/items/${it.slot}-${sym}.png`;
+  if (it.type === "acessorio" && it.slot === "traje") {
+    const cls = Object.keys(TRAJE_THEME).find((k) => it.name.startsWith(TRAJE_THEME[k].noun)), tier = TRAJE_TIERS.findIndex((T) => it.name.includes(`(${T.n})`));
+    return `/items/traje-${cls ?? "portugues"}-${Math.max(0, tier) + 1}.png`;
+  }
+  return `/items/${slotPrefix(it.type)}-${sym}.png`;
+}

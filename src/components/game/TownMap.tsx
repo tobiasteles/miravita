@@ -81,7 +81,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
     );
 
   // PORTÃO DA CIDADE (caça infinita): destaque vermelho pulsante
-  if (s.kind === "gate")
+  if (s.kind === "gate" || s.kind === "arena")
     return (
       <Link href={s.href!} aria-label={label} className={`town-wrap ${base} town-hunt`} style={pos(s)}>
         {ico}
@@ -89,8 +89,8 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
           <GameIcon name="swords" />
         </span>
         <Bubble s={s} />
-        <Cap big chip={<span className="town-chip town-chip-red">Caça infinita</span>}>
-          <GameIcon name="castle" /> {s.label}
+        <Cap big chip={<span className="town-chip town-chip-red">{s.kind === "arena" ? "Duelos PvP" : "Caça infinita"}</span>}>
+          <GameIcon name={s.kind === "arena" ? "swords" : "castle"} /> {s.label}
         </Cap>
       </Link>
     );

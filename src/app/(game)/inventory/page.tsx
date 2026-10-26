@@ -7,7 +7,7 @@ import { getActiveCharacter } from "@/lib/session";
 import { toggleEquip } from "@/actions/inventory";
 import SafeImg from "@/components/game/SafeImg";
 import CraftingBench from "@/components/game/CraftingBench";
-import { SLOTS, slotsFor, slotIcon, slotPrefix, statLine } from "@/lib/game/equipment";
+import { SLOTS, slotsFor, slotIcon, itemIcon, statLine } from "@/lib/game/equipment";
 import { usesSword } from "@/lib/game/classes";
 import GameIcon from "@/components/game/GameIcon";
 
@@ -74,7 +74,7 @@ export default async function Inv() {
             className={`mt-2 flex items-center gap-2 border-t border-violet-900 pt-2 ${RC[r.it.rarity]}`}
           >
             <SafeImg
-              src={`/items/${slotPrefix(r.it.type)}-${r.el?.symbol.toLowerCase()}.png`}
+              src={itemIcon(r.it, r.el?.symbol)}
               className="h-10 w-10 rounded bg-violet-950 object-contain"
               fallback={<span className="text-2xl text-violet-300"><GameIcon name={slotIcon(r.it.type)} /></span>}
             />

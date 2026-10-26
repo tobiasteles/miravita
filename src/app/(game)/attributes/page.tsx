@@ -7,6 +7,21 @@ import { SUB } from "@/lib/game/battle";
 import { STAT_LABEL, PA_MAX, PA_REGEN, type CStats } from "@/lib/game/combat";
 import GameIcon from "@/components/game/GameIcon";
 
+// campo para DIGITAR a quantidade + atalhos (+1, +5, +10, Tudo)
+function Spend({ avail, quick = [1, 5, 10] }: { avail: number; quick?: number[] }) {
+  const b = "rounded bg-violet-600 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-cyan-500 disabled:opacity-30";
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <input name="amount" type="number" inputMode="numeric" min={1} max={Math.max(1, avail)} placeholder="quantos?" disabled={avail < 1} className="w-24 rounded border border-violet-700 bg-[#0c0a1f] px-2 py-1.5 text-sm outline-none focus:border-cyan-400 disabled:opacity-30" />
+      <button disabled={avail < 1} className={b}>Aplicar</button>
+      {quick.map((n) => (
+        <button key={n} name="n" value={n} formNoValidate disabled={avail < n} className={b + " !bg-violet-900"}>+{n}</button>
+      ))}
+      <button name="n" value="max" formNoValidate disabled={avail < 1} className={b + " !bg-amber-600"}>Tudo ({avail})</button>
+    </div>
+  );
+}
+
 // valores por ponto (arredondados PARA BAIXO): ver PER em combat.ts
 const A = [
   ["for", "Força", "+2,5 Poderio Físico · +1,5 Defesa Física · +10 HP Máximo · +0,2% Tenacidade"],
@@ -27,15 +42,13 @@ export default async function Attr() {
       <h1 className="flex items-center gap-2 text-xl font-bold"><GameIcon name="stats" className="text-amber-300" /> Atributos</h1>
       <p className="text-amber-300">Pontos disponíveis: {avail} <span className="text-sm text-violet-400">(5 por nível)</span></p>
       {A.map(([k, n, d]) => (
-        <form key={k} action={spendPoints} className="flex items-center gap-2 rounded-lg border border-violet-900 bg-[#171433] p-3">
+        <form key={k} action={spendPoints} className="space-y-2 rounded-lg border border-violet-900 bg-[#171433] p-3">
           <input type="hidden" name="stat" value={k} />
-          <div className="flex-1">
-            <b>{n}</b> {at[k]}
+          <div>
+            <b>{n}</b> <span className="text-amber-300">{at[k]}</span>
             <div className="text-xs text-violet-400">por ponto: {d}</div>
           </div>
-          {[1, 5].map((n) => (
-            <button key={n} name="n" value={n} disabled={avail < 1} className="rounded bg-violet-600 px-3 py-1 disabled:opacity-30">+{n}</button>
-          ))}
+          <Spend avail={avail} />
         </form>
       ))}
 
@@ -57,13 +70,13 @@ export default async function Attr() {
       <h2 className="pt-3 text-cyan-300">Maestrias</h2>
       <p className="text-sm text-amber-300">Pontos de maestria: {dp} <span className="text-violet-400">(1 por nível, máx. 20 por maestria)</span></p>
       {SUB[c.classKey].map((s, i) => (
-        <form key={s.n} action={spendSub} className="flex items-center gap-2 rounded-lg border border-violet-900 bg-[#171433] p-3">
+        <form key={s.n} action={spendSub} className="space-y-2 rounded-lg border border-violet-900 bg-[#171433] p-3">
           <input type="hidden" name="i" value={i} />
-          <div className="flex-1">
+          <div>
             <b>{s.n}</b> {c.sub[i]}/20
             <div className="text-xs text-violet-400">por ponto: {s.d}</div>
           </div>
-          <button name="n" value="1" disabled={dp < 1 || c.sub[i] >= 20} className="rounded bg-violet-600 px-3 py-1 disabled:opacity-30">+1</button>
+          <Spend avail={Math.min(dp, 20 - c.sub[i])} quick={[1, 5]} />
         </form>
       ))}
     </main>

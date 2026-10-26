@@ -14,6 +14,12 @@ import { addStone, stoneStack } from "@/lib/stone";
 import { MAIN, SIDE, KILL } from "@/lib/game/quests";
 import { applyXp, monsterXp } from "@/lib/game/xp";
 import { ASPECTS, DOMAINS } from "@/lib/game/battle";
+// quantidade a gastar: botões (+1, +5, +10, "Tudo" = n) ou o número digitado no campo (amount)
+const howMany = (fd: FormData, avail: number) => {
+  const rawN = fd.get("n"), raw = rawN ?? fd.get("amount");
+  if (rawN === "max") return avail;
+  return Math.min(Math.max(0, Math.floor(Number(raw)) || 0), avail);
+};
 export async function spendPoints(fd: FormData) {
   const a = await getActiveCharacter();
   if (!a) return;
@@ -21,7 +27,7 @@ export async function spendPoints(fd: FormData) {
   if (!["for", "int", "des"].includes(k)) return;
   const at = a.c.attrs,
     avail = 5 * (a.c.level - 1) - at.for - at.int - at.des,
-    n = Math.min(Math.max(1, Number(fd.get("n")) || 1), avail);
+    n = howMany(fd, avail);
   if (n <= 0) return;
   await db
     .update(characters)
@@ -108,15 +114,13 @@ export async function spendSub(fd: FormData) {
   if (!a) return;
   const i = Number(fd.get("i")),
     s = a.c.sub;
-  if (
-    !(i >= 0 && i < 3) ||
-    s[i] >= 20 ||
-    a.c.level - 1 - s.reduce((x, y) => x + y, 0) < 1
-  )
-    return;
-  const n = [...s];
-  n[i]++;
-  await db.update(characters).set({ sub: n }).where(eq(characters.id, a.c.id));
+  if (!(i >= 0 && i < 3) || s[i] >= 20) return;
+  const avail = a.c.level - 1 - s.reduce((x, y) => x + y, 0),
+    n = Math.min(howMany(fd, avail), 20 - s[i]);
+  if (n < 1) return;
+  const ns = [...s];
+  ns[i] += n;
+  await db.update(characters).set({ sub: ns }).where(eq(characters.id, a.c.id));
   revalidatePath("/attributes");
 }
 export async function forgeDomain(fd: FormData) {

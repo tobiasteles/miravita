@@ -19,6 +19,8 @@ import { ELEMENT_BY_Z } from "@/lib/game/elements";
 import { spawn, blankState, saveBattle, infuse } from "@/lib/game/encounter";
 import { addElement } from "@/lib/equip";
 import { loadout4 } from "@/lib/game/loadout";
+import { pvpNorm } from "@/lib/game/pvp";
+import { settleDuel } from "@/lib/arena-db";
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1),
   rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)),
   pk = <T,>(a: T[]) => a[rn(0, a.length - 1)];
@@ -81,6 +83,11 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       // só vale poder APRENDIDO e EQUIPADO no loadout (as 4 posições da Academia)
       if (!loadout4(P.kit.loadout).includes(act.i) || !P.kit.learned.includes(act.i)) return;
     }
+    if (act.a === "potion" && b.e.pvp) {
+      b.log.push("Poções são proibidas na Arena.");
+      await db.update(battles).set({ state: b }).where(eq(battles.characterId, cid));
+      return;
+    }
     if (act.a === "potion") {
       // gasta 1 poção do estoque; sem estoque, avisa e não perde o turno
       const nm = act.k === "ea" ? CONS.ea.name : CONS.hp.name, { row } = await stack(cid, nm);
@@ -92,7 +99,8 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
     }
     const before = b.over, used0 = b.domUsed;
-    step(b, p, P.q, P.k.key, act, P.c.domain);
+    const Q = b.e.pvp ? pvpNorm(P.q, P.c.level) : P.q; // na Arena os status são normalizados (ver pvp.ts)
+    step(b, p, Q, P.k.key, act, P.c.domain);
     if (P.c.isGm) {
       // personagem GM: nunca morre (HP sempre cheio)
       p.hp = P.q.hp;
@@ -100,12 +108,20 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
     }
     if (!used0 && b.domUsed && P.c.domain)
       await db.update(characters).set({ domain: { ...P.c.domain, uses: P.c.domain.uses + 1 } }).where(eq(characters.id, cid));
-    if (!before && b.over)
+    if (!before && b.over && b.e.pvp) {
+      // duelo da Arena acabou: rating, ouro e histórico; o duelo não deixa sequelas (vida e EA voltam ao máximo)
+      const r = await settleDuel(cid, b, P.c.name, P.c.level, p.gold);
+      p.gold = r.gold;
+      b.res = r.lines;
+      p.hp = P.q.hp;
+      p.mp = P.q.mp;
+    }
+    if (!before && b.over && !b.e.pvp)
       await db.insert(battleLogs).values({
         characterId: cid, mapSlug: b.mapSlug, classKey: P.k.key, charLevel: P.c.level, monsterLevel: b.e.L, dungeon: b.dungeon,
         outcome: b.over === "lose" ? "lose" : b.over === "flee" ? "flee" : "win", turns: b.t ?? 0, hpLeftPct: Math.round((100 * p.hp) / P.q.hp),
       });
-    if (!before && (b.over === "wave" || b.over === "win")) {
+    if (!before && !b.e.pvp && (b.over === "wave" || b.over === "win")) {
       const [pm] = await db.select({ pid: partyMembers.partyId }).from(partyMembers).where(eq(partyMembers.characterId, cid));
       let pb = 0;
       if (pm && P.c.currentMapId)
@@ -151,7 +167,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         if (nk !== "mon") b.res.push(`⚠ Próximo: ${nk === "boss" ? "CHEFE" : "sub-chefe"}!`);
       }
     }
-    if (b.over === "lose") {
+    if (b.over === "lose" && !b.e.pvp) {
       p.hp = Math.ceil(P.q.hp / 2);
       p.gold = Math.floor(p.gold * 0.9);
       b.res = ["💀 Você caiu. Perdeu 10% do ouro."];
