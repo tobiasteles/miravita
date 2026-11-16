@@ -26,6 +26,7 @@ export default function ChatDock() {
   const [to, setTo] = useState("");
   const [err, setErr] = useState("");
   const [ch, setCh] = useState<Ch>("local");
+  const [blocked, setBlocked] = useState<string[]>([]); // nomes bloqueados (só neste navegador)
   const box = useRef<HTMLDivElement>(null);
   const toggle = (v: boolean) => {
     setOpen(v);
@@ -36,6 +37,7 @@ export default function ChatDock() {
   useEffect(() => {
     try {
       setOpen(localStorage.getItem("mv_chat_open") !== "0");
+      setBlocked(JSON.parse(localStorage.getItem("mv_chat_block") ?? "[]"));
     } catch {}
     const h = () => setOpen(true);
     addEventListener("mv-chat-open", h);
@@ -61,6 +63,18 @@ export default function ChatDock() {
   useEffect(() => {
     box.current?.scrollTo(0, 1e9);
   }, [msgs]);
+  function block(name: string) {
+    const nb = [...new Set([...blocked, name.toLowerCase()])];
+    setBlocked(nb);
+    try {
+      localStorage.setItem("mv_chat_block", JSON.stringify(nb));
+    } catch {}
+  }
+  async function report(id: string) {
+    if (!confirm("Denunciar esta mensagem aos moderadores?")) return;
+    const r = await fetch("/api/chat/report", { method: "POST", body: JSON.stringify({ id }) });
+    setErr(r.ok ? "Denúncia enviada. Obrigado!" : (await r.json()).error ?? "Erro");
+  }
   async function send() {
     const c = t.trim();
     if (!c) return;
@@ -112,13 +126,19 @@ export default function ChatDock() {
         {HINT[ch]}
       </div>
       <div ref={box} className="h-36 overflow-auto text-xs">
-        {msgs.map((m) => (
-          <div key={m.id}>
+        {msgs.filter((m) => m.who.startsWith("[GM]") || !blocked.includes(m.who.toLowerCase())).map((m) => (
+          <div key={m.id} className="group">
             <b className={ch === "grito" ? "text-amber-300" : "text-cyan-300"}>
               {m.who}
               {m.to ? ` → ${m.to}` : ""}
             </b>
             : {m.text}
+            {!m.who.startsWith("[GM]") && (
+              <span className="ml-1 hidden gap-1 text-[10px] text-violet-400 group-hover:inline">
+                <button title="Denunciar" onClick={() => report(m.id)}>⚑</button>
+                <button title={`Bloquear ${m.who}`} onClick={() => block(m.who)}>🚫</button>
+              </span>
+            )}
           </div>
         ))}
       </div>

@@ -13,6 +13,7 @@ import {
   primaryKey,
   uniqueIndex,
   index,
+  check,
 } from "drizzle-orm/pg-core";
 import { relations, sql } from "drizzle-orm";
 
@@ -190,6 +191,7 @@ export const guilds = pgTable("guilds", {
   name: text("name").notNull().unique(),
   tag: text("tag").notNull().unique(),
   description: text("description"),
+  inviteCode: text("invite_code"), // null = guilda aberta; com código = só entra quem souber
   level: integer("level").default(1).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -243,9 +245,11 @@ export const characters = pgTable(
       onDelete: "set null",
     }),
     lastSeenAt: timestamp("last_seen_at"),
+    mutedUntil: timestamp("muted_until"), // silenciado no chat até esta data (moderação)
     createdAt: timestamp("created_at").defaultNow().notNull(),
   },
   (t) => [
+    check("characters_gold_nonneg", sql`${t.gold} >= 0`),
     uniqueIndex("characters_name_unique").on(sql`lower(${t.name})`), // nome único, case-insensitive
     index("characters_user_idx").on(t.userId),
     // Limite de 6 por conta: validar na Server Action (transação com count) — ver nota abaixo.
@@ -336,7 +340,10 @@ export const inventory = pgTable(
     equipped: boolean("equipped").default(false).notNull(),
     acquiredAt: timestamp("acquired_at").defaultNow().notNull(),
   },
-  (t) => [index("inventory_char_idx").on(t.characterId)],
+  (t) => [
+    index("inventory_char_idx").on(t.characterId),
+    check("inventory_quantity_nonneg", sql`${t.quantity} >= 0`),
+  ],
 );
 
 /* ───────────── CHAT ───────────── */
@@ -580,3 +587,46 @@ export const pvpFights = pgTable("pvp_fights", {
   delta: integer("delta").notNull(), // pontos de rating que o atacante ganhou/perdeu
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+/* ───────────── SEGURANÇA ───────────── */
+// sessões no servidor: o cookie só guarda o id (assinado); sair ou trocar a senha apaga a linha e invalida o cookie
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
+);
+// trava curta por personagem: uma ação por vez (impede duplicar itens/ouro com requisições em paralelo)
+export const actionLocks = pgTable("action_locks", {
+  characterId: uuid("character_id").primaryKey(),
+  until: timestamp("until").notNull(),
+});
+// contador de tentativas (login, cadastro, chat) por chave e janela de tempo
+export const rateLimits = pgTable("rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").default(0).notNull(),
+  resetAt: timestamp("reset_at").notNull(),
+});
+// denúncias de mensagens do chat (moderação em /admin/denuncias)
+export const chatReports = pgTable(
+  "chat_reports",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    reporterId: uuid("reporter_id")
+      .notNull()
+      .references(() => characters.id, { onDelete: "cascade" }),
+    messageId: uuid("message_id")
+      .notNull()
+      .references(() => chatMessages.id, { onDelete: "cascade" }),
+    reason: text("reason"),
+    resolved: boolean("resolved").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("chat_reports_unique").on(t.reporterId, t.messageId)],
+);

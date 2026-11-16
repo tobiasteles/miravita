@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { db } from "@/db";
-import { aiMonsters, characters, classes, customQuests, gameEvents, inventory, items, maps, musicTracks, newsPosts, questClaims, questProgress, users } from "@/db/schema";
+import { aiMonsters, chatReports, characters, classes, customQuests, gameEvents, inventory, items, maps, musicTracks, newsPosts, questClaims, questProgress, users } from "@/db/schema";
 import { isAdmin } from "@/actions/admin";
 import { getUserId } from "@/lib/auth";
 import { WORLD } from "@/lib/game/world";
@@ -21,6 +21,20 @@ const pick = <T extends string>(v: string, list: readonly T[], d: T): T => (list
 const done = (...paths: string[]) => paths.forEach((p) => revalidatePath(p));
 // "2026-10-25T18:00" (horário de Brasília, sem horário de verão) → Date
 const brt = (v: string) => (v.length === 16 ? new Date(`${v}:00-03:00`) : new Date(v));
+
+// ───── DENÚNCIAS DO CHAT ─────
+export async function resolveReport(fd: FormData) {
+  if (!(await isAdmin())) return;
+  await db.update(chatReports).set({ resolved: true }).where(eq(chatReports.id, s(fd, "id")));
+  done("/admin/denuncias");
+}
+// silencia o autor da mensagem por N horas e já encerra a denúncia
+export async function muteCharacter(fd: FormData) {
+  if (!(await isAdmin())) return;
+  await db.update(characters).set({ mutedUntil: new Date(Date.now() + n(fd, "hours", 1, 720, 24) * 3_600_000) }).where(eq(characters.id, s(fd, "cid")));
+  if (s(fd, "id")) await db.update(chatReports).set({ resolved: true }).where(eq(chatReports.id, s(fd, "id")));
+  done("/admin/denuncias");
+}
 
 // ───── MONSTROS ─────
 export async function addMonster(fd: FormData) {

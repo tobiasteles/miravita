@@ -26,6 +26,13 @@ export async function settleDuel(cid: string, b: { e: { pvp?: unknown }; over: s
     rating: nr, wins: me.wins + (won ? 1 : 0), losses: me.losses + (won ? 0 : 1),
     streak: won ? Math.max(1, me.streak + 1) : Math.min(-1, me.streak - 1), updatedAt: new Date(),
   }).where(eq(pvpRatings.characterId, cid));
+  if (pv.cid) {
+    // quem foi desafiado também ganha/perde (metade do que o atacante mexeu, no sentido oposto): sem isso o ranking só inflava
+    const dd = -Math.round(delta / 2);
+    await db.update(pvpRatings).set({
+      rating: sql`greatest(0, ${pvpRatings.rating} + ${dd})`, wins: sql`${pvpRatings.wins} + ${won ? 0 : 1}`, losses: sql`${pvpRatings.losses} + ${won ? 1 : 0}`, updatedAt: new Date(),
+    }).where(eq(pvpRatings.characterId, pv.cid));
+  }
   if (pv.cid) await db.insert(pvpFights).values({ attackerId: cid, defenderId: pv.cid, attackerName: myName, defenderName: pv.name, attackerWon: won, delta });
   return { gold: gold + g, lines: [won ? `Vitória na Arena! +${delta} de rating (agora ${nr}), +${g}g` : `Derrota na Arena: ${delta} de rating (agora ${nr}), +${g}g de consolo`] };
 }

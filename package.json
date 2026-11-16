@@ -9,10 +9,12 @@
     "db:seed": "tsx src/db/seed.ts",
     "predev": "node scripts/image-manifest.mjs",
     "prebuild": "node scripts/image-manifest.mjs",
-    "imagens": "node scripts/image-manifest.mjs"
+    "imagens": "node scripts/image-manifest.mjs",
+    "test": "tsx --test tests/*.test.mts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "latest",
+    "@google/genai": "2.27.0",
     "@neondatabase/serverless": "^1.0.0",
     "drizzle-orm": "^0.44.0",
     "next": "^15.5.0",

@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { inventory, items, elements } from "@/db/schema";
-import { getActiveCharacter } from "@/lib/session";
+import { withChar } from "@/lib/lock";
 import { computeItem } from "@/lib/game/item-stats";
 import { usesSword } from "@/lib/game/classes";
 import {
@@ -15,96 +15,59 @@ import {
 } from "@/lib/game/equipment";
 
 export async function forge(fd: FormData) {
-  // bancada de forja: 5 unidades de um elemento viram 1 peça de equipamento (a peça já sai equipada)
-  const a = await getActiveCharacter();
-  if (!a) return;
-  const cid = a.c.id,
-    z = Number(fd.get("z")),
-    slot = String(fd.get("slot")) as SlotKey;
-  if (!SLOT_KEYS.includes(slot)) return;
-  const [m] = await db
-    .select({ inv: inventory })
-    .from(inventory)
-    .innerJoin(items, eq(inventory.itemId, items.id))
-    .where(
-      and(
-        eq(inventory.characterId, cid),
-        eq(items.elementAtomicNumber, z),
-        eq(items.type, "material"),
-      ),
-    );
-  if (!m || m.inv.quantity < 5) return;
-  const [el] = await db
-    .select()
-    .from(elements)
-    .where(eq(elements.atomicNumber, z));
-  if (!el) return;
-  const s = computeItem(el),
-    magic = slot === "arma" && !usesSword(a.c.classKey), // magos forjam Cajados (Grimório e Orbe só na Conveniência)
-    stats = magic ? computeWeapon("cajado", s) : computeEquip(slot, s),
-    name = `${magic ? "Cajado" : EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`;
-  await db
-    .update(inventory)
-    .set({ quantity: m.inv.quantity - 5 })
-    .where(eq(inventory.id, m.inv.id));
-  const [ni] = await db
-    .insert(items)
-    .values({
-      elementAtomicNumber: z,
-      name,
-      type: slot,
-      rarity: s.rarity,
-      stats,
-      value: s.value * 3,
-    })
-    .returning({ id: items.id });
-  const old = await db
-    .select({ id: inventory.id })
-    .from(inventory)
-    .innerJoin(items, eq(inventory.itemId, items.id))
-    .where(
-      and(
-        eq(inventory.characterId, cid),
-        eq(inventory.equipped, true),
-        eq(items.type, slot),
-      ),
-    );
-  for (const o of old)
+  return withChar(async (a) => {
+    // bancada de forja: 5 unidades de um elemento viram 1 peça de equipamento (a peça já sai equipada)
+  
+    if (!a) return;
+    const cid = a.c.id,
+      z = Number(fd.get("z")),
+      slot = String(fd.get("slot")) as SlotKey;
+    if (!SLOT_KEYS.includes(slot)) return;
+    const [m] = await db
+      .select({ inv: inventory })
+      .from(inventory)
+      .innerJoin(items, eq(inventory.itemId, items.id))
+      .where(
+        and(
+          eq(inventory.characterId, cid),
+          eq(items.elementAtomicNumber, z),
+          eq(items.type, "material"),
+        ),
+      );
+    if (!m || m.inv.quantity < 5) return;
+    const [el] = await db
+      .select()
+      .from(elements)
+      .where(eq(elements.atomicNumber, z));
+    if (!el) return;
+    const s = computeItem(el),
+      magic = slot === "arma" && !usesSword(a.c.classKey), // magos forjam Cajados (Grimório e Orbe só na Conveniência)
+      stats = magic ? computeWeapon("cajado", s) : computeEquip(slot, s),
+      name = `${magic ? "Cajado" : EQUIP_NAMES[a.c.classKey][slot]} de ${el.name}`;
     await db
       .update(inventory)
-      .set({ equipped: false })
-      .where(eq(inventory.id, o.id));
-  await db
-    .insert(inventory)
-    .values({
-      characterId: cid,
-      itemId: ni.id,
-      equipped: true,
-      currentDurability: stats.durability,
-    });
-  revalidatePath("/inventory");
-}
-export async function toggleEquip(fd: FormData) {
-  // equipar troca a peça do mesmo tipo; desequipar só tira
-  const a = await getActiveCharacter();
-  if (!a) return;
-  const id = String(fd.get("id"));
-  const [row] = await db
-    .select({ inv: inventory, type: items.type })
-    .from(inventory)
-    .innerJoin(items, eq(inventory.itemId, items.id))
-    .where(and(eq(inventory.id, id), eq(inventory.characterId, a.c.id)));
-  if (!row) return;
-  if (!row.inv.equipped) {
+      .set({ quantity: m.inv.quantity - 5 })
+      .where(eq(inventory.id, m.inv.id));
+    const [ni] = await db
+      .insert(items)
+      .values({
+        elementAtomicNumber: z,
+        name,
+        type: slot,
+        rarity: s.rarity,
+        stats,
+        value: s.value * 3,
+      })
+      .returning({ id: items.id });
     const old = await db
       .select({ id: inventory.id })
       .from(inventory)
       .innerJoin(items, eq(inventory.itemId, items.id))
       .where(
         and(
-          eq(inventory.characterId, a.c.id),
+          eq(inventory.characterId, cid),
           eq(inventory.equipped, true),
-          eq(items.type, row.type),
+          eq(items.type, slot),
         ),
       );
     for (const o of old)
@@ -112,10 +75,51 @@ export async function toggleEquip(fd: FormData) {
         .update(inventory)
         .set({ equipped: false })
         .where(eq(inventory.id, o.id));
-  }
-  await db
-    .update(inventory)
-    .set({ equipped: !row.inv.equipped })
-    .where(eq(inventory.id, id));
-  revalidatePath("/inventory");
+    await db
+      .insert(inventory)
+      .values({
+        characterId: cid,
+        itemId: ni.id,
+        equipped: true,
+        currentDurability: stats.durability,
+      });
+    revalidatePath("/inventory");
+  });
+}
+export async function toggleEquip(fd: FormData) {
+  return withChar(async (a) => {
+    // equipar troca a peça do mesmo tipo; desequipar só tira
+  
+    if (!a) return;
+    const id = String(fd.get("id"));
+    const [row] = await db
+      .select({ inv: inventory, type: items.type })
+      .from(inventory)
+      .innerJoin(items, eq(inventory.itemId, items.id))
+      .where(and(eq(inventory.id, id), eq(inventory.characterId, a.c.id)));
+    if (!row) return;
+    if (!row.inv.equipped) {
+      const old = await db
+        .select({ id: inventory.id })
+        .from(inventory)
+        .innerJoin(items, eq(inventory.itemId, items.id))
+        .where(
+          and(
+            eq(inventory.characterId, a.c.id),
+            eq(inventory.equipped, true),
+            eq(items.type, row.type),
+          ),
+        );
+      for (const o of old)
+        await db
+          .update(inventory)
+          .set({ equipped: false })
+          .where(eq(inventory.id, o.id));
+    }
+    await db
+      .update(inventory)
+      .set({ equipped: !row.inv.equipped })
+      .where(eq(inventory.id, id));
+    revalidatePath("/inventory");
+  });
 }

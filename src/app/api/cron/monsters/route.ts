@@ -1,9 +1,9 @@
-import { NextResponse } from "next/server"; import { eq, count } from "drizzle-orm"; import { db } from "@/db"; import { maps, aiMonsters } from "@/db/schema"; import { genJson } from "@/lib/ai/gemini";
+import { NextResponse } from "next/server"; import { eq, count } from "drizzle-orm"; import { db } from "@/db"; import { maps, aiMonsters } from "@/db/schema"; import { genJson } from "@/lib/ai/gemini"; import { cronAuthorized } from "@/lib/cron-auth";
 export const maxDuration = 60;
 type Raw = { name?: unknown; lore?: unknown; archetype?: unknown; skillName?: unknown };
 const OK = /^[\p{L}\p{N} '\-]{3,32}$/u, ARCH = ["tank", "glass", "balanced"];
 export async function GET(req: Request) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) return new NextResponse("unauthorized", { status: 401 });
+  if (!cronAuthorized(req)) return new NextResponse("unauthorized", { status: 401 });
   let added = 0;
   for (const m of await db.select().from(maps)) {
     const [{ n }] = await db.select({ n: count() }).from(aiMonsters).where(eq(aiMonsters.mapSlug, m.slug)); if (n >= 30) continue;

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"; import { and, desc, eq, gt, or, sql, count } from "drizzle-orm"; import { alias } from "drizzle-orm/pg-core";
-import { db } from "@/db"; import { chatMessages, characters, partyMembers } from "@/db/schema"; import { getActiveCharacter } from "@/lib/session";
+import { db } from "@/db"; import { chatMessages, characters, partyMembers } from "@/db/schema"; import { getActiveCharacter } from "@/lib/session"; import { chatProblem } from "@/lib/chat-filter"; import { allow } from "@/lib/rate-limit";
 // regras por canal: cooldown (s), tamanho máximo, nível mínimo. Limite global: 20 mensagens/min por personagem.
 const RULES = { local: { cd: 2, max: 120, lv: 1 }, privado: { cd: 1, max: 200, lv: 1 }, grito: { cd: 30, max: 80, lv: 5 }, guilda: { cd: 1, max: 200, lv: 1 }, grupo: { cd: 1, max: 200, lv: 1 } } as const;
 type Ch = keyof typeof RULES; const isCh = (x: unknown): x is Ch => typeof x === "string" && x in RULES;
@@ -16,8 +16,13 @@ export async function GET(req: Request) {
 }
 export async function POST(req: Request) {
   const a = await getActiveCharacter(); if (!a) return NextResponse.json({ error: "Selecione um personagem." }, { status: 401 });
-  const { content, channel, to } = await req.json(); if (!isCh(channel)) return NextResponse.json({ error: "Canal inválido." }, { status: 400 });
+  let body: { content?: unknown; channel?: unknown; to?: unknown };
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Requisição inválida." }, { status: 400 }); }
+  const { content, channel, to } = body ?? {}; if (!isCh(channel)) return NextResponse.json({ error: "Canal inválido." }, { status: 400 });
   const R = RULES[channel], text = String(content ?? "").trim().slice(0, R.max); if (!text) return NextResponse.json({ error: "Mensagem vazia." }, { status: 400 });
+  if (a.c.mutedUntil && a.c.mutedUntil > new Date()) return NextResponse.json({ error: "Você está silenciado no chat por um moderador." }, { status: 403 });
+  const problem = chatProblem(text); if (problem) return NextResponse.json({ error: problem }, { status: 400 });
+  if (!(await allow(`chat:u:${a.c.userId}`, 30, 60))) return NextResponse.json({ error: "Muitas mensagens por minuto. Aguarde." }, { status: 429 }); // limite por CONTA (não por personagem)
   if (a.c.level < R.lv) return NextResponse.json({ error: `Canal liberado no nível ${R.lv}.` }, { status: 403 });
   const [{ n }] = await db.select({ n: count() }).from(chatMessages).where(and(eq(chatMessages.characterId, a.c.id), gt(chatMessages.createdAt, sql`now() - interval '60 seconds'`)));
   if (n >= 20) return NextResponse.json({ error: "Muitas mensagens por minuto. Aguarde." }, { status: 429 });

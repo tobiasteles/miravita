@@ -1,5 +1,7 @@
-// Sessão assinada (HMAC-SHA256). Usa só Web Crypto, então roda no middleware (Edge) e no servidor.
-// Formato do cookie:  <userId>.<expira em ms>.<assinatura>
+// Cookie de sessão assinado (HMAC-SHA256). Usa só Web Crypto, então roda no middleware (Edge) e no servidor.
+// Formato:  <id da sessão>.<expira em ms>.<assinatura>
+// O cookie NÃO diz quem é o usuário: o id da sessão é procurado na tabela `sessions` (src/lib/auth.ts).
+// Assim, sair da conta ou trocar a senha apaga a sessão e o cookie deixa de valer na hora.
 export const SESSION_COOKIE = "mv_session";
 export const SESSION_DAYS = 30;
 const enc = new TextEncoder();
@@ -13,20 +15,20 @@ async function sign(data: string) {
   const key = await crypto.subtle.importKey("raw", enc.encode(secret()), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return b64(await crypto.subtle.sign("HMAC", key, enc.encode(data)));
 }
-export async function makeToken(userId: string) {
-  const exp = Date.now() + SESSION_DAYS * 86_400_000, body = `${userId}.${exp}`;
+export async function makeToken(sessionId: string, exp: number) {
+  const body = `${sessionId}.${exp}`;
   return `${body}.${await sign(body)}`;
 }
-// devolve o id do usuário se o cookie for válido e não tiver expirado; senão null
+// devolve o id da sessão se a assinatura for válida e o cookie não tiver expirado; senão null
 export async function readToken(token: string | undefined | null): Promise<string | null> {
-  if (!token) return null;
-  const i = token.lastIndexOf("."), j = token.lastIndexOf(".", i - 1);
-  if (i < 0 || j < 0) return null;
-  const body = token.slice(0, i), sig = token.slice(i + 1), exp = Number(token.slice(j + 1, i)), userId = token.slice(0, j);
-  if (!userId || !(exp > Date.now())) return null;
-  const good = await sign(body);
+  if (!token || token.length > 200) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+  const [sid, expStr, sig] = parts, exp = Number(expStr);
+  if (!sid || !(exp > Date.now())) return null;
+  const good = await sign(`${sid}.${expStr}`);
   if (good.length !== sig.length) return null;
   let diff = 0;
   for (let k = 0; k < good.length; k++) diff |= good.charCodeAt(k) ^ sig.charCodeAt(k); // comparação em tempo constante
-  return diff === 0 ? userId : null;
+  return diff === 0 ? sid : null;
 }

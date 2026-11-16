@@ -9,7 +9,10 @@ async function main() {
   const [email, pw] = [process.argv[2]?.trim().toLowerCase(), process.argv[3]];
   if (!email || !pw || pw.length < 8) return console.log("Uso: npx tsx src/db/set-password.ts email senha(8+ caracteres)");
   const passwordHash = await hashPassword(pw), [u] = await db.select().from(s.users).where(eq(s.users.email, email));
-  if (u) await db.update(s.users).set({ passwordHash }).where(eq(s.users.id, u.id));
+  if (u) {
+    await db.update(s.users).set({ passwordHash }).where(eq(s.users.id, u.id));
+    await db.delete(s.sessions).where(eq(s.sessions.userId, u.id)); // trocar a senha derruba todos os logins antigos
+  }
   else await db.insert(s.users).values({ id: randomUUID(), email, passwordHash });
   console.log(u ? `Senha de ${email} atualizada.` : `Conta ${email} criada.`);
 }

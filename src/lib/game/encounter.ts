@@ -38,6 +38,12 @@ export const blankState = (e: Mon, q: Mon[], slug: string, extra: Partial<BState
   e, q, wave: 1, dungeon: false, mapSlug: slug, buf: 0, cu: 0, sv: null, log: [], over: null, res: [],
   pa: PA_MAX, used: {}, aegis: 0, aegisT: 0, eDef: 0, sifT: 0, charge: 0, et: 0, ...extra,
 });
+// há uma luta em andamento? (terminada = "win"/"lose"/"flee"; "wave" = falta o próximo monstro, ainda conta como em andamento)
+export async function hasActiveBattle(cid: string) {
+  const [r] = await db.select({ s: battles.state }).from(battles).where(eq(battles.characterId, cid));
+  const s = r?.s as BState | undefined;
+  return !!s && (s.over === null || s.over === "wave");
+}
 export async function saveBattle(cid: string, state: BState) {
   await db.insert(battles).values({ characterId: cid, state }).onConflictDoUpdate({ target: battles.characterId, set: { state } });
 }

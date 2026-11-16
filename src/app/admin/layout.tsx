@@ -4,7 +4,7 @@ import { isAdmin } from "@/actions/admin";
 export const dynamic = "force-dynamic";
 const NAV: [string, string][] = [
   ["/admin", "Painel"], ["/admin/noticias", "Notícias"], ["/admin/eventos", "Eventos"], ["/admin/monstros", "Monstros"], ["/admin/missoes", "Missões"],
-  ["/admin/itens", "Itens"], ["/admin/gm", "Personagens GM"], ["/admin/musicas", "Músicas"], ["/admin/balance", "Balanceamento"],
+  ["/admin/itens", "Itens"], ["/admin/gm", "Personagens GM"], ["/admin/musicas", "Músicas"], ["/admin/denuncias", "Denúncias"], ["/admin/balance", "Balanceamento"],
 ];
 // só administradores entram (veja ADMIN_EMAILS no .env.local); para os outros a página "não existe"
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {

@@ -6,11 +6,11 @@ import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { characters, characterTraits, classes, maps } from "@/db/schema";
-import { getActiveCharacter } from "@/lib/session";
+import { withChar } from "@/lib/lock";
 import { CLASS_KEYS } from "@/lib/game/classes";
 import { MAGIC, stoneStack } from "@/lib/stone";
 import { ENCOUNTER_P, escortCost, type TravelMode } from "@/lib/game/travel";
-import { spawn, blankState, saveBattle } from "@/lib/game/encounter";
+import { spawn, blankState, saveBattle, hasActiveBattle } from "@/lib/game/encounter";
 import { inventory } from "@/db/schema";
 
 async function uid() {
@@ -78,38 +78,42 @@ export async function selectCharacter(fd: FormData) {
   (await cookies()).set("mv_char", id, {
     httpOnly: true,
     sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
     path: "/",
+    maxAge: 30 * 86_400,
   });
   redirect("/play");
 }
 export async function travel(fd: FormData) {
-  const a = await getActiveCharacter();
-  if (!a) redirect("/characters");
-  const [m] = await db.select().from(maps).where(eq(maps.id, String(fd.get("mapId"))));
-  if (!m || a.c.level < m.minLevel || m.id === a.c.currentMapId) return;
-  const mode = String(fd.get("mode")) as TravelMode, mage = MAGIC.includes(a.c.classKey);
-  let gold = Number(a.c.gold);
-  if (mode === "teleporte") {
-    if (!mage) return;
-  } else if (mode === "pedra") {
-    if (!mage) {
-      const { row } = await stoneStack(a.c.id);
-      if (!row || row.quantity < 1) return;
-      await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
+  return withChar(async (a) => {
+    if (!a) redirect("/characters");
+    if (await hasActiveBattle(a.c.id)) return; // não dá para viajar no meio de uma luta
+    const [m] = await db.select().from(maps).where(eq(maps.id, String(fd.get("mapId"))));
+    if (!m || a.c.level < m.minLevel || m.id === a.c.currentMapId) return;
+    const mode = String(fd.get("mode")) as TravelMode, mage = MAGIC.includes(a.c.classKey);
+    let gold = Number(a.c.gold);
+    if (mode === "teleporte") {
+      if (!mage) return;
+    } else if (mode === "pedra") {
+      if (!mage) {
+        const { row } = await stoneStack(a.c.id);
+        if (!row || row.quantity < 1) return;
+        await db.update(inventory).set({ quantity: row.quantity - 1 }).where(eq(inventory.id, row.id));
+      }
+    } else if (mode === "escolta") {
+      const cost = escortCost(m.minLevel, a.c.level);
+      if (gold < cost) return;
+      gold -= cost; // os guardas levam você em segurança
+    } else if (mode !== "estrada") return;
+    await db.update(characters).set({ currentMapId: m.id, gold }).where(eq(characters.id, a.c.id));
+    revalidatePath("/play");
+    revalidatePath("/map");
+    // ENCONTRO ALEATÓRIO: só no caminho a pé (estrada)
+    if (mode === "estrada" && Math.random() < ENCOUNTER_P) {
+      const kind = Math.random() < 0.15 ? "sub" : "mon";
+      const e = await spawn(m.slug, a.c.level, kind, false);
+      await saveBattle(a.c.id, blankState(e, [], m.slug, { ambush: true, log: [`⚠ EMBOSCADA na estrada! ${e.n} (Nv. ${e.L}) bloqueia o caminho!`] }));
+      redirect("/battle");
     }
-  } else if (mode === "escolta") {
-    const cost = escortCost(m.minLevel, a.c.level);
-    if (gold < cost) return;
-    gold -= cost; // os guardas levam você em segurança
-  } else if (mode !== "estrada") return;
-  await db.update(characters).set({ currentMapId: m.id, gold }).where(eq(characters.id, a.c.id));
-  revalidatePath("/play");
-  revalidatePath("/map");
-  // ENCONTRO ALEATÓRIO: só no caminho a pé (estrada)
-  if (mode === "estrada" && Math.random() < ENCOUNTER_P) {
-    const kind = Math.random() < 0.15 ? "sub" : "mon";
-    const e = await spawn(m.slug, a.c.level, kind, false);
-    await saveBattle(a.c.id, blankState(e, [], m.slug, { ambush: true, log: [`⚠ EMBOSCADA na estrada! ${e.n} (Nv. ${e.L}) bloqueia o caminho!`] }));
-    redirect("/battle");
-  }
+  });
 }

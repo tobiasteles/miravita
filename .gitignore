@@ -1,5 +1,8 @@
 node_modules
 .next
-.env.local
-miravita.zip
+.vercel
+.env
+.env.*
+!.env.example
 *.zip
+*.tsbuildinfo
