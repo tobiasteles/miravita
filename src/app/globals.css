@@ -765,3 +765,30 @@ html[data-busy] form button {
     width: min(100cqw, 160cqh);
   }
 }
+
+/* ===== Efeitos de combate (Fase 2): só visuais ===== */
+.fx-pop { position: absolute; transform: translate(-50%, -50%); font-family: var(--font-display), serif; font-weight: 800; font-size: 1.5rem; white-space: nowrap; text-shadow: 0 2px 0 #000, 0 0 8px #000a; animation: fx-float 1s var(--ease-soft) forwards; }
+.fx-dmg { color: #fff; }
+.fx-hurt { color: #fb7185; }
+.fx-heal { color: var(--color-vital); }
+.fx-crit { color: var(--color-ember); font-size: 2.25rem; }
+@keyframes fx-float {
+  0% { opacity: 0; transform: translate(-50%, -30%) scale(0.6); }
+  15% { opacity: 1; transform: translate(-50%, -60%) scale(1.15); }
+  100% { opacity: 0; transform: translate(-50%, -190%) scale(1); }
+}
+@keyframes fx-fade { 0% { opacity: 0; } 15%, 85% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes fx-shake {
+  20% { transform: translate(calc(var(--fx-amp, 5px) * -1), 2px); }
+  40% { transform: translate(var(--fx-amp, 5px), -2px); }
+  60% { transform: translate(calc(var(--fx-amp, 5px) * -0.6), 1px); }
+  80% { transform: translate(calc(var(--fx-amp, 5px) * 0.6), -1px); }
+}
+.fx-shake { animation: fx-shake 0.3s linear; }
+.fx-shake-big { --fx-amp: 10px; animation: fx-shake 0.4s linear; }
+.fx-flash { position: absolute; inset: 0; animation: fx-flash 0.35s ease-out forwards; }
+@keyframes fx-flash { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .fx-pop { animation: fx-fade 1s forwards; }
+  .fx-shake, .fx-shake-big, .fx-flash { animation: none; }
+}

@@ -1,0 +1,783 @@
+diff --git a/src/app/dev/stage/StageBench.tsx b/src/app/dev/stage/StageBench.tsx
+new file mode 100644
+index 0000000..e51b922
+--- /dev/null
++++ b/src/app/dev/stage/StageBench.tsx
+@@ -0,0 +1,46 @@
++"use client";
++import dynamic from "next/dynamic";
++import { useMemo, useState } from "react";
++import manifest from "@/lib/image-manifest.json";
++import { useStageBus, type StageEvent } from "@/components/stage/bus";
++import { clearSlow, markSlow, useStageMode } from "@/components/stage/support";
++import { Button, Card } from "@/components/ui";
++
++const BenchScene = dynamic(() => import("@/components/stage/BenchScene"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-sm text-ink-dim">Carregando a cena…</div> });
++const first = (pre: string) => ((manifest as string[]).find((u) => u.startsWith(pre)) ?? "");
++
++export default function StageBench() {
++  const mode = useStageMode();
++  const bus = useStageBus();
++  const [summon, setSummon] = useState(false);
++  const [slow, setSlow] = useState(false);
++  const bg = useMemo(() => [first("/maps/")].filter(Boolean), []);
++  const me = useMemo(() => [first("/battle/player/"), first("/avatars/")].filter(Boolean), []);
++  const foe = useMemo(() => [first("/monsters/")].filter(Boolean), []);
++  const send = (e: StageEvent) => bus.emit(e);
++  const btn = (label: string, e: StageEvent) => <Button key={label} size="sm" variant="ghost" onClick={() => send(e)}>{label}</Button>;
++  return (
++    <main className="mx-auto max-w-5xl space-y-3 p-3">
++      <h1 className="font-display text-xl font-extrabold">Bancada do núcleo 3D (só dev)</h1>
++      <p className="text-sm text-ink-dim">Modo: {slow ? "voltou ao 2D (aparelho lento)" : mode}. Use o medidor de FPS do Chrome (DevTools → ⋮ → More tools → Rendering) e CPU 6x slowdown.</p>
++      <div className="relative aspect-[16/10] overflow-hidden rounded-panel bg-bg ring-1 ring-line">
++        {mode === "3d" && !slow ? <BenchScene bus={bus} bg={bg} me={me} foe={foe} summon={summon} onSlow={() => { markSlow(); setSlow(true); }} /> : <div className="grid h-full place-items-center text-ink-dim">Tela 2D atual (fallback)</div>}
++      </div>
++      <Card className="flex flex-wrap gap-2 !p-3">
++        {btn("Golpe", { k: "hit", from: "me", to: "foe", el: "#e8e6ff" })}
++        {btn("Crítico ígneo", { k: "crit", from: "me", to: "foe", el: "metal alcalino" })}
++        {btn("Crítico arcano", { k: "crit", from: "me", to: "foe", el: "#a78bfa" })}
++        {btn("Esquiva", { k: "dodge", from: "me", to: "foe" })}
++        {btn("Inimigo ataca", { k: "hit", from: "foe", to: "me" })}
++        {btn("Inimigo crítico", { k: "crit", from: "foe", to: "me", el: "#f43f5e" })}
++        {btn("Cura", { k: "heal", to: "me" })}
++        {btn("Habilidade", { k: "skill", from: "me", el: "gás nobre" })}
++        <Button size="sm" variant="ghost" onClick={() => { setSummon(true); setTimeout(() => send({ k: "summon", el: "#67e8f9" }), 30); }}>Invocar</Button>
++        {btn("Vitória", { k: "win" })}
++        {btn("Derrota", { k: "lose" })}
++        {btn("Fugir", { k: "flee" })}
++        <Button size="sm" variant="gold" onClick={() => { clearSlow(); location.reload(); }}>Limpar marca de lentidão</Button>
++      </Card>
++    </main>
++  );
++}
+diff --git a/src/app/dev/stage/page.tsx b/src/app/dev/stage/page.tsx
+new file mode 100644
+index 0000000..722e059
+--- /dev/null
++++ b/src/app/dev/stage/page.tsx
+@@ -0,0 +1,9 @@
++import { notFound } from "next/navigation";
++import StageBench from "./StageBench";
++
++export const metadata = { title: "Stage (dev)" };
++// bancada de teste do núcleo 3D: só em desenvolvimento (em produção, 404)
++export default function Page() {
++  if (process.env.NODE_ENV === "production") notFound();
++  return <StageBench />;
++}
+diff --git a/src/components/stage/BenchScene.tsx b/src/components/stage/BenchScene.tsx
+new file mode 100644
+index 0000000..2c7623a
+--- /dev/null
++++ b/src/components/stage/BenchScene.tsx
+@@ -0,0 +1,16 @@
++"use client";
++import type { StageBus } from "./bus";
++import GameStage from "./core/GameStage";
++import { Actor, Backdrop } from "./core/layers";
++
++// Cena de teste do núcleo (só usada em /dev/stage). As cenas reais são BattleStage (3B) e TownStage (3C).
++export default function BenchScene({ bus, bg, me, foe, summon, onSlow }: { bus: StageBus; bg: string[]; me: string[]; foe: string[]; summon: boolean; onSlow: () => void }) {
++  return (
++    <GameStage bus={bus} onSlow={onSlow}>
++      <Backdrop urls={bg} z={-8} dim={0.62} />
++      <Actor id="foe" urls={foe} x={78} y={56} h={44} />
++      <Actor id="me" urls={me} x={22} y={92} z={1} h={42} />
++      {summon && <Actor id="summon" urls={me} x={9} y={94} z={1.5} h={22} />}
++    </GameStage>
++  );
++}
+diff --git a/src/components/stage/bus.ts b/src/components/stage/bus.ts
+new file mode 100644
+index 0000000..b4cd0ac
+--- /dev/null
++++ b/src/components/stage/bus.ts
+@@ -0,0 +1,40 @@
++"use client";
++import { useEffect, useRef, useState } from "react";
++
++// Eventos de cena: o servidor já decidiu tudo; isto só descreve o que DESENHAR. Sem three.js aqui (módulo leve).
++export type Who = "me" | "foe" | "summon";
++export type StageEvent =
++  | { k: "hit" | "crit"; from: Who; to: Who; d?: number; el?: string } // el: cor "#rrggbb" ou categoria do elemento
++  | { k: "dodge"; from: Who; to: Who }
++  | { k: "heal"; to: Who; d?: number }
++  | { k: "skill"; from: Who; el?: string }
++  | { k: "summon"; el?: string }
++  | { k: "win" | "lose" | "flee" };
++
++export type StageBus = { emit: (e: StageEvent) => void; on: (fn: (e: StageEvent) => void) => () => void };
++
++export function createStageBus(): StageBus {
++  const subs = new Set<(e: StageEvent) => void>();
++  return {
++    emit: (e) => subs.forEach((f) => f(e)),
++    on: (fn) => {
++      subs.add(fn);
++      return () => void subs.delete(fn);
++    },
++  };
++}
++export const useStageBus = () => useState(createStageBus)[0];
++
++// Dispara os eventos UMA vez quando `seq` muda (ex.: o número do turno que o servidor gravou). A carga inicial não repete animações.
++export function useStageEvents(bus: StageBus, events: readonly StageEvent[] | undefined, seq: number | string) {
++  const last = useRef<number | string | null>(null);
++  useEffect(() => {
++    if (last.current === null) {
++      last.current = seq;
++      return;
++    }
++    if (last.current === seq) return;
++    last.current = seq;
++    events?.forEach((e) => bus.emit(e));
++  }, [bus, events, seq]);
++}
+diff --git a/src/components/stage/colors.ts b/src/components/stage/colors.ts
+new file mode 100644
+index 0000000..933a55e
+--- /dev/null
++++ b/src/components/stage/colors.ts
+@@ -0,0 +1,7 @@
++import { CAT_COLOR } from "../codex/palette";
++// "#rrggbb" passa direto; nome de categoria química vira a cor da categoria; senão, o padrão
++export function fxColor(el?: string, fallback = "#e8e6ff"): string {
++  if (!el) return fallback;
++  if (el.startsWith("#")) return el;
++  return CAT_COLOR[el] ?? fallback;
++}
+diff --git a/src/components/stage/core/GameStage.tsx b/src/components/stage/core/GameStage.tsx
+new file mode 100644
+index 0000000..715d817
+--- /dev/null
++++ b/src/components/stage/core/GameStage.tsx
+@@ -0,0 +1,125 @@
++"use client";
++import { Canvas, useFrame, useThree } from "@react-three/fiber";
++import { useEffect, useMemo, useRef, useState } from "react";
++import type { StageBus } from "../bus";
++import { StageCtx, useStage, type ActorRef, type Stage } from "./context";
++import { Director } from "./director";
++import { Particles } from "./particles";
++
++// Núcleo 3D compartilhado por /battle e /play. Câmera em perspectiva (altura visível = 10 unidades em z=0);
++// filhos são camadas (Backdrop, Actor, Tint...). Tudo aqui é VISUAL: nenhuma regra do jogo passa por este componente.
++const FOV = 30, TAN = Math.tan((FOV * Math.PI) / 360), D = 5 / TAN;
++
++export type GameStageProps = {
++  bus: StageBus;
++  animate?: boolean; // leve movimento de câmera/respiração (a cena pede quadros a ~30 fps); false = só redesenha quando algo acontece
++  sky?: string;
++  interactive?: boolean; // false (padrão): o canvas não captura o mouse, então botões do DOM por cima continuam clicáveis
++  onSlow?: () => void; // fps baixo por alguns segundos ou contexto WebGL perdido → o chamador volta ao 2D
++  children: React.ReactNode;
++};
++
++function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
++  const st = useStage();
++  const camera = useThree((s) => s.camera);
++  const gl = useThree((s) => s.gl);
++  const ptr = useRef({ x: 0, y: 0 }), cur = useRef({ x: 0, y: 0 }), clock = useRef(0), timer = useRef(0);
++  const g = useRef({ n: 0, sum: 0, bad: 0, fired: false });
++  const slow = useRef(onSlow);
++  useEffect(() => { slow.current = onSlow; });
++
++  useEffect(() => {
++    const mv = (e: PointerEvent) => { ptr.current.x = (e.clientX / innerWidth - 0.5) * 2; ptr.current.y = (e.clientY / innerHeight - 0.5) * 2; };
++    const vis = () => { if (!document.hidden) st.invalidate(); };
++    const lost = (e: Event) => { e.preventDefault(); slow.current?.(); };
++    addEventListener("pointermove", mv, { passive: true });
++    document.addEventListener("visibilitychange", vis);
++    gl.domElement.addEventListener("webglcontextlost", lost);
++    return () => {
++      removeEventListener("pointermove", mv);
++      document.removeEventListener("visibilitychange", vis);
++      gl.domElement.removeEventListener("webglcontextlost", lost);
++      clearTimeout(timer.current);
++    };
++  }, [st, gl]);
++
++  useFrame((_, dtRaw) => {
++    const dt = Math.min(dtRaw, 0.1);
++    clock.current += dt;
++    const tx = animate ? Math.sin(clock.current * 0.35) * 0.18 + ptr.current.x * 0.35 : 0;
++    const ty = animate ? Math.sin(clock.current * 0.27 + 1) * 0.08 - ptr.current.y * 0.18 : 0;
++    const k = Math.min(1, dt * 3);
++    cur.current.x += (tx - cur.current.x) * k;
++    cur.current.y += (ty - cur.current.y) * k;
++    let sx = 0, sy = 0;
++    if (st.shake.amp > 0.002) {
++      sx = (Math.random() - 0.5) * 2 * st.shake.amp;
++      sy = (Math.random() - 0.5) * 2 * st.shake.amp;
++      st.shake.amp *= Math.exp(-dt * 9);
++    } else st.shake.amp = 0;
++    camera.position.x = cur.current.x + sx;
++    camera.position.y = cur.current.y + sy;
++
++    // vigia de desempenho: ignora pausas (quadros sem animação) e só julga depois de 3 s de cena
++    const f = g.current;
++    if (dtRaw > 0 && dtRaw < 0.2) {
++      f.n++; f.sum += dtRaw;
++      if (f.n >= 45) {
++        const fps = f.n / f.sum;
++        if (clock.current > 3) f.bad = fps < 20 ? f.bad + 1 : 0;
++        if (f.bad >= 3 && !f.fired) { f.fired = true; slow.current?.(); }
++        f.n = 0; f.sum = 0;
++      }
++    } else { f.n = 0; f.sum = 0; }
++
++    // modo "demand": quadro cheio só enquanto algo anima; parado, no máximo ~30 fps (e nada com a aba escondida ou fora da tela)
++    if (st.busy.n > 0 || st.shake.amp > 0) st.invalidate();
++    else if (animate && st.visible.v && !document.hidden && !timer.current) {
++      timer.current = window.setTimeout(() => { timer.current = 0; st.invalidate(); }, 33);
++    }
++  });
++  return null;
++}
++
++function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; animate: boolean; onSlow?: () => void; visible: { v: boolean }; children: React.ReactNode }) {
++  const size = useThree((s) => s.size);
++  const invalidate = useThree((s) => s.invalidate);
++  const [actors] = useState(() => new Map<string, ActorRef>());
++  const [shake] = useState(() => ({ amp: 0 }));
++  const [busy] = useState(() => ({ n: 0 }));
++  const [fx] = useState<Stage["fx"]>(() => ({ burst: () => {} }));
++  const stage = useMemo<Stage>(() => {
++    const aspect = size.width / Math.max(1, size.height);
++    const vis = (z = 0) => { const h = 2 * (D - z) * TAN; return { w: h * aspect, h }; };
++    const at = (x: number, y: number, z = 0): [number, number, number] => { const v = vis(z); return [(x / 100 - 0.5) * v.w, (0.5 - y / 100) * v.h, z]; };
++    return { at, vis, actors, shake, busy, visible, fx, invalidate };
++  }, [size.width, size.height, actors, shake, busy, visible, fx, invalidate]);
++  return (
++    <StageCtx.Provider value={stage}>
++      <Rig animate={animate} onSlow={onSlow} />
++      <Director bus={bus} />
++      {children}
++      <Particles />
++    </StageCtx.Provider>
++  );
++}
++
++export default function GameStage({ bus, animate = true, sky = "#0c0a1f", interactive = false, onSlow, children }: GameStageProps) {
++  const box = useRef<HTMLDivElement>(null);
++  const [visible] = useState(() => ({ v: true }));
++  useEffect(() => { // fora da tela: para de pedir quadros
++    const el = box.current;
++    if (!el) return;
++    const io = new IntersectionObserver(([x]) => { visible.v = x.isIntersecting; });
++    io.observe(el);
++    return () => io.disconnect();
++  }, [visible]);
++  return (
++    <div ref={box} aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: interactive ? "auto" : "none" }}>
++      <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: FOV, position: [0, 0, D], near: 1, far: 80 }} gl={{ antialias: false, powerPreference: "low-power", alpha: false }}>
++        <color attach="background" args={[sky]} />
++        <Scene bus={bus} animate={animate} onSlow={onSlow} visible={visible}>{children}</Scene>
++      </Canvas>
++    </div>
++  );
++}
+diff --git a/src/components/stage/core/context.ts b/src/components/stage/core/context.ts
+new file mode 100644
+index 0000000..b87b1f3
+--- /dev/null
++++ b/src/components/stage/core/context.ts
+@@ -0,0 +1,28 @@
++import { createContext, useContext } from "react";
++import type { Group, MeshBasicMaterial, Vector3 } from "three";
++
++export type Off = { x: number; y: number; sx: number; sy: number; rot: number; op: number; fr: number; fg: number; fb: number };
++export const newOff = (): Off => ({ x: 0, y: 0, sx: 1, sy: 1, rot: 0, op: 1, fr: 0, fg: 0, fb: 0 });
++export type ActorRef = {
++  g: Group; m: MeshBasicMaterial; home: Vector3; h: number; w: number;
++  off: Off; // deslocamentos do quadro atual (o Director zera e soma a cada frame)
++  hold: { op: number; y: number; rot: number }; // estado que fica depois de vitória/derrota
++};
++export type BurstOpts = { x: number; y: number; z: number; color: string; n: number; mode?: "burst" | "ring" | "rise"; speed?: number; life?: number; gravity?: number; spread?: number };
++export type Stage = {
++  // posição em % do quadro (como o resto do jogo: SPOTS, CSS) → unidades do mundo, em qualquer profundidade z
++  at: (xPct: number, yPct: number, z?: number) => [number, number, number];
++  vis: (z?: number) => { w: number; h: number };
++  actors: Map<string, ActorRef>;
++  shake: { amp: number };
++  busy: { n: number };
++  visible: { v: boolean };
++  fx: { burst: (o: BurstOpts) => void };
++  invalidate: () => void;
++};
++export const StageCtx = createContext<Stage | null>(null);
++export function useStage(): Stage {
++  const s = useContext(StageCtx);
++  if (!s) throw new Error("useStage: use dentro de <GameStage>");
++  return s;
++}
+diff --git a/src/components/stage/core/director.tsx b/src/components/stage/core/director.tsx
+new file mode 100644
+index 0000000..e8c3773
+--- /dev/null
++++ b/src/components/stage/core/director.tsx
+@@ -0,0 +1,140 @@
++"use client";
++import { useFrame } from "@react-three/fiber";
++import { useEffect, useRef } from "react";
++import { Color } from "three";
++import type { StageBus, StageEvent, Who } from "../bus";
++import { fxColor } from "../colors";
++import { useStage, type ActorRef } from "./context";
++
++// Recebe eventos do servidor (via bus) e vira animações curtas (tweens) sobre os atores. Só desenha: nunca decide nada.
++type Tw = { t: number; dur: number; step: (p: number) => void; done?: () => void };
++const ease = (p: number) => 1 - (1 - p) ** 3;
++const bell = (p: number) => Math.sin(Math.PI * p);
++const back = (p: number) => 1 + 2.70158 * (p - 1) ** 3 + 1.70158 * (p - 1) ** 2;
++
++export function Director({ bus }: { bus: StageBus }) {
++  const st = useStage();
++  const tws = useRef<Tw[]>([]);
++  const dirty = useRef(false);
++
++  useEffect(() => {
++    const list = tws.current;
++    const add = (delay: number, dur: number, step: (p: number) => void, done?: () => void) =>
++      list.push({ t: -delay, dur: Math.max(dur, 0.001), step, done });
++    const at = (delay: number, fn: () => void) => add(delay, 0.001, () => {}, fn);
++    const act = (w: Who) => st.actors.get(w);
++    // o ator pode montar um pouco depois do evento (a cena 3D renderiza em outro ciclo): tenta de novo por ~0,5 s
++    const later = (w: Who, fn: (a: ActorRef) => void, tries = 10) => {
++      const a = act(w);
++      if (a) fn(a);
++      else if (tries > 0) setTimeout(() => later(w, fn, tries - 1), 50);
++    };
++    const mid = (a: ActorRef) => ({ x: a.g.position.x, y: a.home.y + a.h * 0.5, z: a.home.z + 0.3 });
++    const flash = (a: ActorRef, c: Color, delay: number, dur: number) =>
++      add(delay, dur, (p) => { const f = 1 - p; a.off.fr += (c.r * 0.8 + 0.4) * f; a.off.fg += (c.g * 0.8 + 0.4) * f; a.off.fb += (c.b * 0.8 + 0.4) * f; });
++
++    const strike = (e: Extract<StageEvent, { k: "hit" | "crit" | "dodge" }>) => {
++      const A = act(e.from), T = act(e.to), crit = e.k === "crit", miss = e.k === "dodge";
++      const hex = fxColor("el" in e ? e.el : undefined), col = new Color(hex);
++      if (A && T) {
++        const reach = (T.home.x - A.home.x) * 0.45; // avanço do atacante em direção ao alvo e volta
++        add(0, 0.4, (p) => { const f = p < 0.35 ? ease(p / 0.35) : 1 - ease((p - 0.35) / 0.65); A.off.x += reach * f; A.off.sx *= 1 + 0.06 * f; });
++      }
++      if (!T) return;
++      const dir = A ? Math.sign(T.home.x - A.home.x) || 1 : 1, lag = 0.14;
++      if (miss) {
++        add(lag, 0.5, (p) => { const f = bell(p); T.off.x += dir * 0.9 * f; T.off.y += 0.12 * f; T.off.op *= 1 - 0.5 * f; });
++        return;
++      }
++      add(lag, crit ? 0.55 : 0.38, (p) => { const f = (1 - p) ** 2; T.off.x += dir * (crit ? 0.9 : 0.45) * f; T.off.sy *= 1 - (crit ? 0.16 : 0.08) * f; T.off.sx *= 1 + (crit ? 0.1 : 0.05) * f; });
++      flash(T, crit ? col : new Color("#ffffff"), lag, crit ? 0.3 : 0.18);
++      at(lag, () => {
++        const m = mid(T);
++        st.fx.burst({ ...m, color: hex, n: crit ? 36 : 14, speed: crit ? 3.2 : 2.2, life: 0.6, gravity: 3 });
++        if (crit) st.fx.burst({ ...m, color: "#ffffff", n: 10, speed: 4, life: 0.35, gravity: 0 });
++        st.shake.amp = Math.max(st.shake.amp, crit ? 0.35 : 0.12);
++      });
++    };
++
++    const handle = (e: StageEvent) => {
++      switch (e.k) {
++        case "hit": case "crit": case "dodge": strike(e); break;
++        case "heal": {
++          const T = act(e.to);
++          if (!T) break;
++          add(0, 0.6, (p) => { const f = bell(p); T.off.sx *= 1 + 0.04 * f; T.off.sy *= 1 + 0.04 * f; T.off.fg += 0.5 * f; T.off.fr += 0.15 * f; T.off.fb += 0.2 * f; });
++          at(0, () => st.fx.burst({ x: T.g.position.x, y: T.home.y + T.h * 0.2, z: T.home.z + 0.3, color: "#34d399", n: 22, mode: "rise", speed: 1.6, life: 0.9, gravity: -0.5, spread: T.w * 0.35 }));
++          break;
++        }
++        case "skill": {
++          const A = act(e.from);
++          if (!A) break;
++          const hex = fxColor(e.el, "#a78bfa"), c = new Color(hex);
++          add(0, 0.5, (p) => { const f = bell(p); A.off.sx *= 1 + 0.1 * f; A.off.sy *= 1 + 0.1 * f; A.off.fr += c.r * 0.6 * f; A.off.fg += c.g * 0.6 * f; A.off.fb += c.b * 0.6 * f; });
++          at(0.1, () => st.fx.burst({ ...mid(A), color: hex, n: 28, mode: "ring", speed: 2.6, life: 0.6, gravity: 0 }));
++          break;
++        }
++        case "summon":
++          later("summon", (S) => {
++            add(0, 0.5, (p) => { const s = back(p); S.off.sx *= s; S.off.sy *= s; S.off.op *= Math.min(1, p * 3); });
++            at(0, () => st.fx.burst({ ...mid(S), color: fxColor(e.el, "#67e8f9"), n: 26, mode: "ring", speed: 2.2, life: 0.6, gravity: 0 }));
++          });
++          break;
++        case "win": {
++          const F = act("foe"), M = act("me");
++          if (F) {
++            add(0.1, 0.9, (p) => { const f = ease(p); F.off.op *= 1 - f; F.off.y += 0.5 * f; F.off.sx *= 1 - 0.2 * f; F.off.sy *= 1 - 0.2 * f; }, () => { F.hold.op = 0; });
++            at(0.1, () => st.fx.burst({ ...mid(F), color: "#fbbf24", n: 44, speed: 3, life: 0.9, gravity: 2.5 }));
++          }
++          if (M) add(0.2, 0.7, (p) => { M.off.y += Math.abs(Math.sin(p * Math.PI * 2)) * 0.5 * (1 - p); });
++          break;
++        }
++        case "lose": {
++          const M = act("me");
++          if (!M) break;
++          add(0, 0.8, (p) => { const f = ease(p); M.off.y -= 0.35 * f; M.off.rot += 0.5 * f; M.off.op *= 1 - 0.65 * f; M.off.fr += 0.5 * (1 - p); }, () => { M.hold = { op: 0.35, y: -0.35, rot: 0.5 }; });
++          at(0, () => { st.shake.amp = Math.max(st.shake.amp, 0.3); st.fx.burst({ ...mid(M), color: "#f43f5e", n: 24, speed: 2, life: 0.8, gravity: 2 }); });
++          break;
++        }
++        case "flee": {
++          const M = act("me");
++          if (!M) break;
++          const dx = st.vis(M.home.z).w * 0.3;
++          add(0, 0.7, (p) => { const f = ease(p); M.off.x -= dx * f; M.off.op *= 1 - f; }, () => { M.hold.op = 0; });
++          break;
++        }
++      }
++      dirty.current = true;
++      st.invalidate();
++    };
++    const off = bus.on(handle);
++    return () => { off(); list.length = 0; };
++  }, [bus, st]);
++
++  useFrame((_, dtRaw) => {
++    const list = tws.current;
++    if (!list.length && !dirty.current) { st.busy.n = 0; return; }
++    const dt = Math.min(dtRaw, 0.05);
++    st.actors.forEach((a) => { const o = a.off; o.x = o.y = o.rot = o.fr = o.fg = o.fb = 0; o.sx = o.sy = o.op = 1; });
++    for (let i = list.length - 1; i >= 0; i--) {
++      const w = list[i];
++      w.t += dt;
++      if (w.t < 0) continue;
++      const p = Math.min(1, w.t / w.dur);
++      w.step(p);
++      if (p >= 1) { w.done?.(); list.splice(i, 1); }
++    }
++    st.actors.forEach((a) => {
++      const o = a.off;
++      a.g.position.set(a.home.x + o.x, a.home.y + o.y + a.hold.y, a.home.z);
++      a.g.scale.set(o.sx, o.sy, 1);
++      a.g.rotation.z = o.rot + a.hold.rot;
++      a.m.opacity = o.op * a.hold.op;
++      a.m.color.setRGB(1 + o.fr, 1 + o.fg, 1 + o.fb);
++    });
++    dirty.current = list.length > 0;
++    st.busy.n = list.length;
++    if (list.length) st.invalidate();
++  });
++  return null;
++}
+diff --git a/src/components/stage/core/layers.tsx b/src/components/stage/core/layers.tsx
+new file mode 100644
+index 0000000..1ad9679
+--- /dev/null
++++ b/src/components/stage/core/layers.tsx
+@@ -0,0 +1,110 @@
++"use client";
++import { useFrame } from "@react-three/fiber";
++import { useEffect, useMemo, useRef } from "react";
++import { CanvasTexture, Color, DoubleSide, SRGBColorSpace, Vector3 } from "three";
++import type { Group, MeshBasicMaterial } from "three";
++import { newOff, useStage, type ActorRef } from "./context";
++import { useTex } from "./textures";
++
++// Camadas da cena. Posições em % do quadro (iguais às do layout 2D) + profundidade z (negativo = mais longe).
++
++// fundo: cobre a tela inteira com a textura (como background-size: cover) e sobra um pouco para o movimento de câmera
++export function Backdrop({ urls, z = -8, dim = 1, tint = "#ffffff", overscan = 1.1 }: { urls: readonly string[]; z?: number; dim?: number; tint?: string; overscan?: number }) {
++  const st = useStage();
++  const tex = useTex(urls);
++  const color = useMemo(() => new Color(tint).multiplyScalar(dim), [tint, dim]);
++  if (!tex) return null;
++  const img = tex.image as { width: number; height: number };
++  const ia = img.width / img.height, v = st.vis(z);
++  let h = v.h * overscan, w = h * ia;
++  if (w < v.w * overscan) { w = v.w * overscan; h = w / ia; }
++  return (
++    <mesh position={[0, 0, z]} renderOrder={0}>
++      <planeGeometry args={[w, h]} />
++      <meshBasicMaterial map={tex} color={color} toneMapped={false} />
++    </mesh>
++  );
++}
++
++// película de cor por cima da cena (noite, perigo, derrota). Fica perto da câmera e cobre tudo.
++export function Tint({ color, opacity, z = 6 }: { color: string; opacity: number; z?: number }) {
++  const st = useStage();
++  if (opacity <= 0) return null;
++  const v = st.vis(z);
++  return (
++    <mesh position={[0, 0, z]} renderOrder={30}>
++      <planeGeometry args={[v.w * 1.3, v.h * 1.3]} />
++      <meshBasicMaterial color={color} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
++    </mesh>
++  );
++}
++
++let shadowTex: CanvasTexture | null = null;
++function getShadowTex() {
++  if (!shadowTex) {
++    const c = document.createElement("canvas");
++    c.width = c.height = 64;
++    const g = c.getContext("2d");
++    if (g) {
++      const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
++      r.addColorStop(0, "rgba(0,0,0,.85)"); r.addColorStop(1, "rgba(0,0,0,0)");
++      g.fillStyle = r; g.fillRect(0, 0, 64, 64);
++    }
++    shadowTex = new CanvasTexture(c);
++    shadowTex.colorSpace = SRGBColorSpace;
++  }
++  return shadowTex;
++}
++// sombra "blob": uma elipse escura sob os pés (sem shadow map, quase de graça)
++export function Shadow({ x, y, z, w, opacity = 0.55 }: { x: number; y: number; z: number; w: number; opacity?: number }) {
++  const t = getShadowTex();
++  return (
++    <mesh position={[x, y + w * 0.04, z - 0.02]} renderOrder={3}>
++      <planeGeometry args={[w, w * 0.28]} />
++      <meshBasicMaterial map={t} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
++    </mesh>
++  );
++}
++
++// personagem/monstro: arte 2D existente num plano, com os pés ancorados em (x%, y%)
++export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, bob = true }: { id: string; urls: readonly string[]; x: number; y: number; z?: number; h: number; flip?: boolean; shadow?: boolean; bob?: boolean }) {
++  const st = useStage();
++  const tex = useTex(urls);
++  const g = useRef<Group>(null), breath = useRef<Group>(null), mat = useRef<MeshBasicMaterial>(null);
++  const hh = (h / 100) * st.vis(z).h;
++  const img = tex?.image as { width: number; height: number } | undefined;
++  const ww = img ? hh * (img.width / img.height) : hh * 0.8;
++  const [X, Y] = st.at(x, y, z);
++  const phase = useMemo(() => Math.random() * 6, []);
++
++  useEffect(() => {
++    if (!g.current || !mat.current) return;
++    const ref: ActorRef = { g: g.current, m: mat.current, home: new Vector3(X, Y, z), h: hh, w: ww, off: newOff(), hold: { op: 1, y: 0, rot: 0 } };
++    st.actors.set(id, ref);
++    return () => { if (st.actors.get(id) === ref) st.actors.delete(id); };
++  }, [st, id, X, Y, z, hh, ww]);
++
++  useFrame(({ clock }) => { // respiração leve (só roda enquanto a cena anima)
++    if (bob && breath.current) breath.current.scale.y = 1 + 0.012 * Math.sin(clock.elapsedTime * 2 + phase);
++  });
++
++  return (
++    <>
++      {shadow && <Shadow x={X} y={Y} z={z} w={ww * 0.8} />}
++      <group ref={g} position={[X, Y, z]}>
++        <group ref={breath}>
++          <mesh position={[0, hh / 2, 0]} scale={[flip ? -1 : 1, 1, 1]} renderOrder={5} visible={!!tex}>
++            <planeGeometry args={[ww, hh]} />
++            <meshBasicMaterial ref={mat} map={tex} transparent depthWrite={false} toneMapped={false} side={DoubleSide} />
++          </mesh>
++          {urls.length === 0 && ( // sem arte: silhueta simples, para a cena continuar funcionando
++            <mesh position={[0, hh / 2, 0]} renderOrder={5}>
++              <circleGeometry args={[hh * 0.3, 24]} />
++              <meshBasicMaterial color="#6d28d9" transparent opacity={0.4} depthWrite={false} toneMapped={false} />
++            </mesh>
++          )}
++        </group>
++      </group>
++    </>
++  );
++}
+diff --git a/src/components/stage/core/particles.tsx b/src/components/stage/core/particles.tsx
+new file mode 100644
+index 0000000..196f7f4
+--- /dev/null
++++ b/src/components/stage/core/particles.tsx
+@@ -0,0 +1,87 @@
++"use client";
++import { useFrame } from "@react-three/fiber";
++import { useEffect, useMemo } from "react";
++import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, SRGBColorSpace } from "three";
++import { useStage, type BurstOpts } from "./context";
++
++// Um único Points com 320 partículas reaproveitadas (anel circular). Cada golpe/cura/habilidade chama st.fx.burst().
++const N = 320;
++export function Particles() {
++  const st = useStage();
++  const S = useMemo(() => ({
++    pos: new Float32Array(N * 3), vel: new Float32Array(N * 3), col: new Float32Array(N * 4),
++    life: new Float32Array(N), max: new Float32Array(N), grav: new Float32Array(N), head: 0, alive: false,
++  }), []);
++  const geo = useMemo(() => {
++    const g = new BufferGeometry();
++    g.setAttribute("position", new BufferAttribute(S.pos, 3));
++    g.setAttribute("color", new BufferAttribute(S.col, 4));
++    return g;
++  }, [S]);
++  const tex = useMemo(() => {
++    const c = document.createElement("canvas");
++    c.width = c.height = 32;
++    const g = c.getContext("2d");
++    if (g) {
++      const r = g.createRadialGradient(16, 16, 0, 16, 16, 16);
++      r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.4, "rgba(255,255,255,.5)"); r.addColorStop(1, "rgba(255,255,255,0)");
++      g.fillStyle = r; g.fillRect(0, 0, 32, 32);
++    }
++    const t = new CanvasTexture(c);
++    t.colorSpace = SRGBColorSpace;
++    return t;
++  }, []);
++  useEffect(() => () => { geo.dispose(); tex.dispose(); }, [geo, tex]);
++
++  useEffect(() => {
++    const c = new Color();
++    st.fx.burst = (o: BurstOpts) => {
++      c.set(o.color);
++      const mode = o.mode ?? "burst", n = Math.min(o.n, N), spread = o.spread ?? 0.15;
++      for (let k = 0; k < n; k++) {
++        const i = S.head, i3 = i * 3, i4 = i * 4;
++        S.head = (S.head + 1) % N;
++        const sp = (o.speed ?? 2) * (0.5 + Math.random() * 0.5), a = mode === "ring" ? (k / n) * Math.PI * 2 : Math.random() * Math.PI * 2;
++        S.pos[i3] = o.x + (mode === "rise" ? (Math.random() - 0.5) * 2 * spread : (Math.random() - 0.5) * 0.2);
++        S.pos[i3 + 1] = o.y + (Math.random() - 0.5) * 0.2;
++        S.pos[i3 + 2] = o.z;
++        if (mode === "rise") { S.vel[i3] = (Math.random() - 0.5) * 0.4; S.vel[i3 + 1] = sp; }
++        else if (mode === "ring") { S.vel[i3] = Math.cos(a) * sp; S.vel[i3 + 1] = Math.sin(a) * sp * 0.55; }
++        else { S.vel[i3] = Math.cos(a) * sp * Math.random(); S.vel[i3 + 1] = Math.sin(a) * sp + 0.6; }
++        S.vel[i3 + 2] = (Math.random() - 0.5) * 0.5;
++        S.life[i] = S.max[i] = (o.life ?? 0.6) * (0.7 + Math.random() * 0.5);
++        S.grav[i] = o.gravity ?? 2;
++        S.col[i4] = c.r; S.col[i4 + 1] = c.g; S.col[i4 + 2] = c.b; S.col[i4 + 3] = 1;
++      }
++      S.alive = true;
++      st.invalidate();
++    };
++    return () => { st.fx.burst = () => {}; };
++  }, [st, S]);
++
++  useFrame((_, dtRaw) => {
++    if (!S.alive) return;
++    const dt = Math.min(dtRaw, 0.05);
++    let alive = false;
++    for (let i = 0; i < N; i++) {
++      if (S.life[i] <= 0) continue;
++      S.life[i] -= dt;
++      const i3 = i * 3, i4 = i * 4;
++      if (S.life[i] <= 0) { S.col[i4 + 3] = 0; continue; }
++      alive = true;
++      S.vel[i3 + 1] -= S.grav[i] * dt;
++      S.pos[i3] += S.vel[i3] * dt; S.pos[i3 + 1] += S.vel[i3 + 1] * dt; S.pos[i3 + 2] += S.vel[i3 + 2] * dt;
++      S.col[i4 + 3] = Math.min(1, (S.life[i] / S.max[i]) * 1.6);
++    }
++    geo.attributes.position.needsUpdate = true;
++    geo.attributes.color.needsUpdate = true;
++    S.alive = alive;
++    if (alive) st.invalidate();
++  });
++
++  return (
++    <points geometry={geo} frustumCulled={false} renderOrder={20}>
++      <pointsMaterial map={tex} size={0.55} sizeAttenuation vertexColors transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++    </points>
++  );
++}
+diff --git a/src/components/stage/core/textures.ts b/src/components/stage/core/textures.ts
+new file mode 100644
+index 0000000..cb79873
+--- /dev/null
++++ b/src/components/stage/core/textures.ts
+@@ -0,0 +1,47 @@
++"use client";
++import { useEffect, useState } from "react";
++import { LinearFilter, SRGBColorSpace, TextureLoader } from "three";
++import type { Texture } from "three";
++
++// Texturas só do próprio domínio (public/). Recebe a lista de `variants()` e usa a primeira que carregar.
++// Cache por lista, com contagem de uso; descarta da GPU 3 s depois que ninguém usa.
++type Ent = { tex: Texture | null; p: Promise<Texture | null>; n: number };
++const cache = new Map<string, Ent>();
++let loader: TextureLoader | null = null;
++
++function load(urls: readonly string[]): Promise<Texture | null> {
++  loader ??= new TextureLoader();
++  const l = loader;
++  const one = (i: number): Promise<Texture | null> =>
++    i >= urls.length ? Promise.resolve(null) : new Promise<Texture | null>((res) => l.load(urls[i], (t) => res(t), undefined, () => res(null))).then((t) => t ?? one(i + 1));
++  return one(0);
++}
++export function useTex(urls: readonly string[]): Texture | null {
++  const key = urls.join("|");
++  const [tex, setTex] = useState<Texture | null>(() => cache.get(key)?.tex ?? null);
++  useEffect(() => {
++    if (!key) { setTex(null); return; }
++    let ent = cache.get(key);
++    if (!ent) {
++      const e: Ent = { tex: null, n: 0, p: load(urls) };
++      e.p = e.p.then((t) => {
++        if (t) { t.colorSpace = SRGBColorSpace; t.generateMipmaps = false; t.minFilter = LinearFilter; t.magFilter = LinearFilter; }
++        e.tex = t;
++        return t;
++      });
++      cache.set(key, e);
++      ent = e;
++    }
++    const cur = ent;
++    cur.n++;
++    let alive = true;
++    void cur.p.then((t) => { if (alive) setTex(t); });
++    return () => {
++      alive = false;
++      cur.n--;
++      setTimeout(() => { if (cur.n <= 0 && cache.get(key) === cur) { cur.tex?.dispose(); cache.delete(key); } }, 3000);
++    };
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [key]);
++  return tex;
++}
+diff --git a/src/components/stage/support.ts b/src/components/stage/support.ts
+new file mode 100644
+index 0000000..2347495
+--- /dev/null
++++ b/src/components/stage/support.ts
+@@ -0,0 +1,29 @@
++"use client";
++import { useEffect, useState } from "react";
++import { fxLevel } from "@/lib/fx";
++
++// Decide entre cena 3D e telas 2D atuais. 2D quando: Gráficos "baixa", movimento reduzido, sem WebGL ou aparelho marcado como lento.
++const KEY = "mv_no3d";
++export function webglOk() {
++  try {
++    const c = document.createElement("canvas");
++    const g = (c.getContext("webgl2") || c.getContext("webgl")) as WebGLRenderingContext | null;
++    g?.getExtension("WEBGL_lose_context")?.loseContext();
++    return !!g;
++  } catch {
++    return false;
++  }
++}
++export const markSlow = () => { try { localStorage.setItem(KEY, "1"); } catch {} };
++export const clearSlow = () => { try { localStorage.removeItem(KEY); } catch {} };
++export function stageMode(): "3d" | "2d" {
++  if (fxLevel() !== "high") return "2d";
++  try { if (localStorage.getItem(KEY) === "1") return "2d"; } catch {}
++  return webglOk() ? "3d" : "2d";
++}
++// "pending" no servidor e no primeiro render: mostre o 2D até decidir (nunca fica sem tela)
++export function useStageMode(): "pending" | "3d" | "2d" {
++  const [m, setM] = useState<"pending" | "3d" | "2d">("pending");
++  useEffect(() => setM(stageMode()), []);
++  return m;
++}
+diff --git a/tests/stage.test.mts b/tests/stage.test.mts
+new file mode 100644
+index 0000000..45c0396
+--- /dev/null
++++ b/tests/stage.test.mts
+@@ -0,0 +1,21 @@
++// npm test  (barramento de eventos e cores da cena 3D; sem three.js)
++import test from "node:test";
++import assert from "node:assert/strict";
++import { createStageBus, type StageEvent } from "../src/components/stage/bus";
++import { fxColor } from "../src/components/stage/colors";
++
++test("bus: entrega aos assinantes e para depois de cancelar", () => {
++  const bus = createStageBus(), got: StageEvent[] = [];
++  const off = bus.on((e) => got.push(e));
++  bus.emit({ k: "crit", from: "me", to: "foe", d: 12 });
++  off();
++  bus.emit({ k: "win" });
++  assert.equal(got.length, 1);
++  assert.equal(got[0].k, "crit");
++});
++test("fxColor: hex passa, categoria vira cor, desconhecido cai no padrão", () => {
++  assert.equal(fxColor("#123456"), "#123456");
++  assert.equal(fxColor("gás nobre"), "#a78bfa");
++  assert.equal(fxColor("xyz", "#000000"), "#000000");
++  assert.equal(fxColor(undefined), "#e8e6ff");
++});

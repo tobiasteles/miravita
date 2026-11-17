@@ -13,6 +13,7 @@ const KEYS: readonly (readonly [string, string, string, IconName])[] = [
   ["h", "/attributes", "Atributos", "stats"],
   ["m", "/map", "Mapa", "compass"],
   ["a", "/atividades", "Atividades", "pick"],
+  ["e", "/codex", "Códex", "flask"],
 ];
 const chat = () => {
   dispatchEvent(new Event("mv-chat-open"));
@@ -47,7 +48,7 @@ export function HotkeyBar() {
     </>
   );
   return (
-    <nav className="grid grid-cols-4 gap-2 sm:grid-cols-8 lg:flex lg:flex-col">
+    <nav className="grid grid-cols-4 gap-2 sm:grid-cols-9 lg:flex lg:flex-col">
       {KEYS.map(([k, href, l, i]) =>
         href === "#chat" ? (
           <button key={k} onClick={chat} className={c}>

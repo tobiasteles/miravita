@@ -8,6 +8,8 @@ import { variants, bg } from "@/lib/img";
 import { REALMS } from "@/lib/game/realms";
 import { battleAct } from "@/actions/battle";
 import type { BState } from "@/lib/game/battle";
+import BattleFx from "@/components/game/BattleFx";
+import { useBattleKeys } from "@/components/game/useBattleKeys";
 type It = { i: number; n: string; c: number; pa: number; lv: number; t: string; d: string; req?: { i: number; n: number; name: string } | null };
 type TLock = { label: string; txt: string; pos: number; m: number };
 // ───── barra de acerto: ajuste aqui ─────
@@ -68,16 +70,21 @@ function Sprite({ srcs, fb, cls }: { srcs: string[]; fb: React.ReactNode; cls: s
 const INSTANT = ["b", "e", "ag", "sv"]; // poderes de apoio não usam a barra de acerto
 const PAT: Record<string, string> = { carga: "Golpe carregado", couraca: "Couraça", furia: "Fúria" };
 const Bar = ({ v, m }: { v: number; m: number }) => {
-  const p = Math.max(0, Math.min(100, (v / m) * 100));
+  const p = m > 0 ? Math.max(0, Math.min(100, (v / m) * 100)) : 0;
+  // camada clara atrás: encolhe devagar e mostra quanto acabou de cair
   return (
-    <div className="h-2 flex-1 rounded bg-slate-300">
+    <div className="relative h-2 flex-1 overflow-hidden rounded bg-slate-300">
+      <div className="absolute inset-y-0 left-0 bg-white/80 transition-[width] delay-300 duration-1000 motion-reduce:transition-none" style={{ width: `${p}%` }} />
       <div
-        className={`h-2 rounded transition-all duration-700 ${p > 50 ? "bg-emerald-500" : p > 20 ? "bg-yellow-400" : "bg-red-500"}`}
+        className={`absolute inset-y-0 left-0 transition-[width] duration-500 motion-reduce:transition-none ${p > 50 ? "bg-emerald-500" : p > 20 ? "bg-yellow-400" : "bg-red-500"}`}
         style={{ width: `${p}%` }}
       />
     </div>
   );
 };
+const Kbd = ({ k }: { k: string }) => (
+  <kbd className="ml-auto hidden rounded bg-slate-300 px-1 text-[10px] font-normal text-slate-600 md:inline">{k}</kbd>
+);
 const Box = ({ cls, children }: { cls: string; children: React.ReactNode }) => (
   <div
     className={`absolute w-44 rounded-lg border-2 border-slate-700 bg-amber-50 px-2 py-1 font-mono text-xs text-slate-800 shadow-lg ${cls}`}
@@ -88,6 +95,7 @@ const Box = ({ cls, children }: { cls: string; children: React.ReactNode }) => (
 export default function BattleScreen({ b, p }: { b: BState; p: P }) {
   const r = useRouter();
   const [pend, go] = useTransition();
+  useBattleKeys();
   const [menu, setMenu] = useState<"main" | "sk" | "tm" | "it">("main");
   const [sk, setSk] = useState(0);
   const mk = useRef<HTMLDivElement>(null),
@@ -184,6 +192,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           }}
         />
         <div aria-hidden className="absolute inset-0" style={{ background: BG_VIGNETTE }} />
+        <BattleFx enemyKey={`${b.e.n}|${b.wave}|${b.run?.kills ?? 0}`} enemyHp={b.e.hp} playerHp={p.hp} log={b.log} />
         {b.charge ? (
           <div className="absolute inset-x-0 top-14 z-20 mx-auto w-fit animate-pulse rounded-full border-2 border-rose-400 bg-rose-950/90 px-4 py-1 text-center font-mono text-xs font-bold text-rose-200">
             <GameIcon name="warn" /> GOLPE DEVASTADOR a caminho! Atordoe, use Véu Intangível ou Barreira Aegis
@@ -362,7 +371,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
         <div className="grid grid-cols-2 content-start gap-2 sm:grid-cols-3">
           {b.over === "wave" ? (
             <>
-              <button disabled={pend} className={m} onClick={() => act({ a: "next" })}>
+              <button data-key="n" disabled={pend} className={m} onClick={() => act({ a: "next" })}>
                 <GameIcon name="play" /> {b.endless ? "PRÓXIMO MONSTRO" : "PRÓXIMA ONDA"}
               </button>
               {b.endless && (
@@ -372,19 +381,19 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
               )}
             </>
           ) : b.over ? (
-            <button disabled={pend} className={m} onClick={() => act({ a: "end" })}>
+            <button data-key="n" disabled={pend} className={m} onClick={() => act({ a: "end" })}>
               <GameIcon name="play" /> CONTINUAR
             </button>
           ) : menu === "main" ? (
             <>
-              <button className={m} onClick={() => setMenu("sk")}>
-                <GameIcon name="swords" /> LUTAR
+              <button data-key="l" className={m} onClick={() => setMenu("sk")}>
+                <GameIcon name="swords" /> LUTAR <Kbd k="L" />
               </button>
-              <button disabled={pend || !!b.pvp} title={b.pvp ? "Poções são proibidas na Arena" : ""} className={m} onClick={() => setMenu("it")}>
-                <GameIcon name="flask" /> ITEM
+              <button disabled={pend || !!b.pvp} title={b.pvp ? "Poções são proibidas na Arena" : ""} data-key="i" className={m} onClick={() => setMenu("it")}>
+                <GameIcon name="flask" /> ITEM <Kbd k="I" />
               </button>
-              <button disabled={pend} className={m} onClick={() => act({ a: "flee" })}>
-                <GameIcon name="boots" /> FUGIR
+              <button data-key="f" disabled={pend} className={m} onClick={() => act({ a: "flee" })}>
+                <GameIcon name="boots" /> FUGIR <Kbd k="F" />
               </button>
               {b.endless && (
                 <button disabled={pend} className={m + " col-span-full !bg-slate-300"} onClick={() => act({ a: "end" })}>
@@ -404,12 +413,13 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           ) : menu === "sk" ? (
             <>
               {p.skills.length === 0 && <div className="col-span-full text-xs text-amber-300">Nenhum poder equipado! Volte à cidade e equipe até 4 na Academia.</div>}
-              {p.skills.map((s) => {
+              {p.skills.map((s, idx) => {
                 const reqOk = !s.req || (b.used?.[s.req.i] ?? 0) >= s.req.n, pa = b.pa ?? p.pam;
                 const why = !reqOk ? `exige ${s.req!.name} ${s.req!.n}× (${b.used?.[s.req!.i] ?? 0}/${s.req!.n})` : "";
                 return (
                   <button
                     key={s.i}
+                    data-key={String(idx + 1)}
                     title={s.d}
                     disabled={pend || p.mp < s.c || pa < s.pa || p.lv < s.lv || !reqOk}
                     className={m + " flex-col !items-start"}
@@ -424,12 +434,13 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
                     <span className="flex w-full items-center gap-1.5">
                       <SafeImg src={`/skills/${p.cls}-${s.i + 1}.png`} className="inline h-5 w-5" />
                       <span className="min-w-0 truncate">{s.n}</span>
+                      <Kbd k={String(idx + 1)} />
                     </span>
                     <span className="text-[10px] font-normal text-slate-500">{why || `EA ${s.c} · PA ${s.pa}`}</span>
                   </button>
                 );
               })}
-              <button className={m} onClick={() => setMenu("main")}>
+              <button data-key="b" className={m} onClick={() => setMenu("main")}>
                 <GameIcon name="arrowleft" /> VOLTAR
               </button>
             </>
@@ -445,7 +456,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
                   <GameIcon name="flask" /> {n} ×{p.pots[k]}
                 </button>
               ))}
-              <button className={m} onClick={() => setMenu("main")}>
+              <button data-key="b" className={m} onClick={() => setMenu("main")}>
                 <GameIcon name="arrowleft" /> VOLTAR
               </button>
             </>
