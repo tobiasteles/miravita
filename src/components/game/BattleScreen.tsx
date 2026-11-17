@@ -10,6 +10,12 @@ import { battleAct } from "@/actions/battle";
 import type { BState } from "@/lib/game/battle";
 import BattleFx from "@/components/game/BattleFx";
 import { useBattleKeys } from "@/components/game/useBattleKeys";
+import dynamic from "next/dynamic";
+import { useStageBus, useStageEvents } from "@/components/stage/bus";
+import { markSlow, useStageMode } from "@/components/stage/support";
+import { useToast } from "@/components/ui";
+// cena 3D: chunk separado, carregado só aqui (e só se o aparelho aguentar); o 2D abaixo continua sendo o padrão
+const BattleStage = dynamic(() => import("@/components/stage/BattleStage"), { ssr: false });
 type It = { i: number; n: string; c: number; pa: number; lv: number; t: string; d: string; req?: { i: number; n: number; name: string } | null };
 type TLock = { label: string; txt: string; pos: number; m: number };
 // ───── barra de acerto: ajuste aqui ─────
@@ -96,6 +102,10 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
   const r = useRouter();
   const [pend, go] = useTransition();
   useBattleKeys();
+  const mode = useStageMode(), bus = useStageBus(), toast = useToast();
+  const [slow, setSlow] = useState(false), [ready3d, setReady3d] = useState(false);
+  const is3d = mode === "3d" && !slow, scene3d = is3d && ready3d;
+  useStageEvents(bus, b.fx, b.fxSeq ?? 0); // anima o que o servidor gravou no último turno
   const [menu, setMenu] = useState<"main" | "sk" | "tm" | "it">("main");
   const [sk, setSk] = useState(0);
   const mk = useRef<HTMLDivElement>(null),
@@ -182,17 +192,35 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
         className="relative min-h-0 flex-1 overflow-hidden rounded-xl border-4 border-slate-700"
         style={{ background: `linear-gradient(${sky} 0 52%, ${ground} 52% 100%)` }}
       >
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background: bg(b.dungeon ? `/realms/${b.mapSlug}` : `/maps/${b.mapSlug}`, "center/cover"),
-            filter: BG_FILTER,
-            transform: "scale(1.03)",
-          }}
-        />
+        {!scene3d && (
+          <div
+            aria-hidden
+            className="absolute inset-0"
+            style={{
+              background: bg(b.dungeon ? `/realms/${b.mapSlug}` : `/maps/${b.mapSlug}`, "center/cover"),
+              filter: BG_FILTER,
+              transform: "scale(1.03)",
+            }}
+          />
+        )}
+        {is3d && (
+          <BattleStage
+            bus={bus}
+            bgUrls={variants(b.dungeon ? `/realms/${b.mapSlug}` : `/maps/${b.mapSlug}`)}
+            foeUrls={variants(`/monsters/${es}`)}
+            meUrls={[...variants(`/battle/player/${p.av}`), ...variants(`/avatars/${p.av}`)]}
+            svUrls={b.sv ? variants(`/summons/${slug(b.sv.n)}`) : null}
+            foeKey={`${b.e.n}|${b.wave}|${b.run?.kills ?? 0}`}
+            over={b.over}
+            sky={sky}
+            danger={p.hp > 0 && p.hp / p.mhp < 0.25}
+            domColor={b.dom ? (p.dom ? p.dom.c : "#7c3aed") : null}
+            onReady={() => setReady3d(true)}
+            onSlow={() => { markSlow(); setSlow(true); setReady3d(false); toast("O aparelho ficou lento: voltamos ao modo 2D.", "warn"); }}
+          />
+        )}
         <div aria-hidden className="absolute inset-0" style={{ background: BG_VIGNETTE }} />
-        <BattleFx enemyKey={`${b.e.n}|${b.wave}|${b.run?.kills ?? 0}`} enemyHp={b.e.hp} playerHp={p.hp} log={b.log} />
+        <BattleFx enemyKey={`${b.e.n}|${b.wave}|${b.run?.kills ?? 0}`} enemyHp={b.e.hp} playerHp={p.hp} log={b.log} minimal={scene3d} />
         {b.charge ? (
           <div className="absolute inset-x-0 top-14 z-20 mx-auto w-fit animate-pulse rounded-full border-2 border-rose-400 bg-rose-950/90 px-4 py-1 text-center font-mono text-xs font-bold text-rose-200">
             <GameIcon name="warn" /> GOLPE DEVASTADOR a caminho! Atordoe, use Véu Intangível ou Barreira Aegis
@@ -238,13 +266,17 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           />
         )}
         {/* inimigo (canto direito) */}
-        <div className="absolute right-[5%] top-[52%] h-[6%] w-[24%] rounded-[50%] bg-black/25" />
-        <Sprite
-          key={es}
-          srcs={variants(`/monsters/${es}`)}
-          fb={<GameIcon name="skull" />}
-          cls="absolute right-[7%] top-[12%] aspect-square h-[44%]"
-        />
+        {!scene3d && (
+          <>
+            <div className="absolute right-[5%] top-[52%] h-[6%] w-[24%] rounded-[50%] bg-black/25" />
+            <Sprite
+              key={es}
+              srcs={variants(`/monsters/${es}`)}
+              fb={<GameIcon name="skull" />}
+              cls="absolute right-[7%] top-[12%] aspect-square h-[44%]"
+            />
+          </>
+        )}
         <Box cls={`left-2 ${top}`}>
           <div className="flex justify-between font-bold">
             <span className="truncate">{b.e.n}</span>
@@ -288,20 +320,24 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           )}
         </Box>
         {/* jogador (canto esquerdo) */}
-        <div className="absolute bottom-[5%] left-[3%] h-[7%] w-[26%] rounded-[50%] bg-black/25" />
-        <Sprite
-          key={p.av}
-          srcs={[...variants(`/battle/player/${p.av}`), ...variants(`/avatars/${p.av}`)]}
-          fb={<GameIcon name={PLI[p.cls] ?? "spark"} />}
-          cls="absolute bottom-[8%] left-[6%] aspect-square h-[42%]"
-        />
-        {b.sv && (
-          <Sprite
-            key={b.sv.n}
-            srcs={variants(`/summons/${slug(b.sv.n)}`)}
-            fb={<GameIcon name="ghost" />}
-            cls="absolute bottom-[30%] left-[24%] aspect-square h-[28%] opacity-90"
-          />
+        {!scene3d && (
+          <>
+            <div className="absolute bottom-[5%] left-[3%] h-[7%] w-[26%] rounded-[50%] bg-black/25" />
+            <Sprite
+              key={p.av}
+              srcs={[...variants(`/battle/player/${p.av}`), ...variants(`/avatars/${p.av}`)]}
+              fb={<GameIcon name={PLI[p.cls] ?? "spark"} />}
+              cls="absolute bottom-[8%] left-[6%] aspect-square h-[42%]"
+            />
+            {b.sv && (
+              <Sprite
+                key={b.sv.n}
+                srcs={variants(`/summons/${slug(b.sv.n)}`)}
+                fb={<GameIcon name="ghost" />}
+                cls="absolute bottom-[30%] left-[24%] aspect-square h-[28%] opacity-90"
+              />
+            )}
+          </>
         )}
         <Box cls="bottom-3 right-2">
           <div className="flex justify-between font-bold">

@@ -67,7 +67,9 @@ export function Shadow({ x, y, z, w, opacity = 0.55 }: { x: number; y: number; z
 }
 
 // personagem/monstro: arte 2D existente num plano, com os pés ancorados em (x%, y%)
-export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, bob = true }: { id: string; urls: readonly string[]; x: number; y: number; z?: number; h: number; flip?: boolean; shadow?: boolean; bob?: boolean }) {
+// end: pose em que o ator já nasce quando a luta abriu terminada ("gone" = sumiu, "down" = caído)
+const END = { gone: { op: 0, y: 0, rot: 0 }, down: { op: 0.35, y: -0.35, rot: 0.5 } } as const;
+export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, bob = true, end }: { id: string; urls: readonly string[]; x: number; y: number; z?: number; h: number; flip?: boolean; shadow?: boolean; bob?: boolean; end?: "gone" | "down" }) {
   const st = useStage();
   const tex = useTex(urls);
   const g = useRef<Group>(null), breath = useRef<Group>(null), mat = useRef<MeshBasicMaterial>(null);
@@ -79,10 +81,11 @@ export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, b
 
   useEffect(() => {
     if (!g.current || !mat.current) return;
-    const ref: ActorRef = { g: g.current, m: mat.current, home: new Vector3(X, Y, z), h: hh, w: ww, off: newOff(), hold: { op: 1, y: 0, rot: 0 } };
+    const ref: ActorRef = { g: g.current, m: mat.current, home: new Vector3(X, Y, z), h: hh, w: ww, off: newOff(), hold: end ? { ...END[end] } : { op: 1, y: 0, rot: 0 } };
+    if (end) { ref.g.position.y = Y + ref.hold.y; ref.g.rotation.z = ref.hold.rot; ref.m.opacity = ref.hold.op; st.invalidate(); }
     st.actors.set(id, ref);
     return () => { if (st.actors.get(id) === ref) st.actors.delete(id); };
-  }, [st, id, X, Y, z, hh, ww]);
+  }, [st, id, X, Y, z, hh, ww, end]);
 
   useFrame(({ clock }) => { // respiração leve (só roda enquanto a cena anima)
     if (bob && breath.current) breath.current.scale.y = 1 + 0.012 * Math.sin(clock.elapsedTime * 2 + phase);

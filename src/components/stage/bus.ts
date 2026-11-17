@@ -1,15 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import type { StageEvent } from "@/lib/game/fx-events";
 
 // Eventos de cena: o servidor já decidiu tudo; isto só descreve o que DESENHAR. Sem three.js aqui (módulo leve).
-export type Who = "me" | "foe" | "summon";
-export type StageEvent =
-  | { k: "hit" | "crit"; from: Who; to: Who; d?: number; el?: string } // el: cor "#rrggbb" ou categoria do elemento
-  | { k: "dodge"; from: Who; to: Who }
-  | { k: "heal"; to: Who; d?: number }
-  | { k: "skill"; from: Who; el?: string }
-  | { k: "summon"; el?: string }
-  | { k: "win" | "lose" | "flee" };
+export type { Who, StageEvent } from "@/lib/game/fx-events";
 
 export type StageBus = { emit: (e: StageEvent) => void; on: (fn: (e: StageEvent) => void) => () => void };
 
@@ -25,9 +19,12 @@ export function createStageBus(): StageBus {
 }
 export const useStageBus = () => useState(createStageBus)[0];
 
-// Dispara os eventos UMA vez quando `seq` muda (ex.: o número do turno que o servidor gravou). A carga inicial não repete animações.
-export function useStageEvents(bus: StageBus, events: readonly StageEvent[] | undefined, seq: number | string) {
+// Dispara os eventos do turno UMA vez quando `seq` muda (ex.: BState.fxSeq). Os eventos entram em fila, um a cada `gap` s,
+// para o golpe do jogador e a resposta do inimigo não se atropelarem. A carga inicial não repete animações.
+export function useStageEvents(bus: StageBus, events: readonly StageEvent[] | undefined, seq: number | string, gap = 0.45) {
   const last = useRef<number | string | null>(null);
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => timers.current.forEach((t) => clearTimeout(t)), []);
   useEffect(() => {
     if (last.current === null) {
       last.current = seq;
@@ -35,6 +32,6 @@ export function useStageEvents(bus: StageBus, events: readonly StageEvent[] | un
     }
     if (last.current === seq) return;
     last.current = seq;
-    events?.forEach((e) => bus.emit(e));
-  }, [bus, events, seq]);
+    (events ?? []).forEach((e, i) => timers.current.push(window.setTimeout(() => bus.emit(e), i * gap * 1000)));
+  }, [bus, events, seq, gap]);
 }

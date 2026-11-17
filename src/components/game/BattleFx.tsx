@@ -5,12 +5,12 @@ import { sfx } from "@/lib/sfx";
 
 // Camada VISUAL do combate. Não decide nada: só compara o que o servidor já mandou (HP antes × depois) e anima a diferença.
 type Pop = { id: number; txt: string; cls: string; x: string; y: string };
-type Props = { enemyKey: string; enemyHp: number; playerHp: number; log: string[] };
+type Props = { enemyKey: string; enemyHp: number; playerHp: number; log: string[]; minimal?: boolean }; // minimal: a cena 3D cuida de partículas, flash e tremor
 const CRIT = /RUPTURA|PERFEITO/;
 const FOE_POS = { x: "78%", y: "30%", fx: 0.78, fy: 0.3 }; // ajuste aqui se mudar a posição dos sprites
 const ME_POS = { x: "22%", y: "58%" };
 
-export default function BattleFx({ enemyKey, enemyHp, playerHp, log }: Props) {
+export default function BattleFx({ enemyKey, enemyHp, playerHp, log, minimal = false }: Props) {
   const [pops, setPops] = useState<Pop[]>([]);
   const [flash, setFlash] = useState<{ n: number; c: string }>({ n: 0, c: "" });
   const prev = useRef<{ key: string; e: number; p: number; log: string[] } | null>(null);
@@ -63,7 +63,7 @@ export default function BattleFx({ enemyKey, enemyHp, playerHp, log }: Props) {
     };
     const shake = (big: boolean) => {
       const el = root.current?.parentElement;
-      if (!el || lvl !== "high") return;
+      if (!el || lvl !== "high" || minimal) return;
       el.classList.remove("fx-shake", "fx-shake-big");
       void el.offsetWidth; // reinicia a animação
       el.classList.add(big ? "fx-shake-big" : "fx-shake");
@@ -72,7 +72,7 @@ export default function BattleFx({ enemyKey, enemyHp, playerHp, log }: Props) {
     if (dE > 0) {
       pop(`-${dE}`, myCrit ? "fx-crit" : "fx-dmg", FOE_POS);
       sfx(myCrit ? "crit" : "hit");
-      if (lvl === "high") {
+      if (lvl === "high" && !minimal) {
         burst(FOE_POS.fx, FOE_POS.fy, myCrit ? "#fbbf24" : "#e8e6ff", myCrit ? 26 : 12);
         if (myCrit) setFlash((f) => ({ n: f.n + 1, c: "bg-ember/50" }));
       }
@@ -81,11 +81,12 @@ export default function BattleFx({ enemyKey, enemyHp, playerHp, log }: Props) {
       pop(`-${dP}`, "fx-hurt", ME_POS);
       sfx("hurt");
       shake(foeCrit);
-      if (foeCrit && lvl === "high") setFlash((f) => ({ n: f.n + 1, c: "bg-blood/40" }));
+      if (foeCrit && lvl === "high" && !minimal) setFlash((f) => ({ n: f.n + 1, c: "bg-blood/40" }));
     } else if (dP < 0) {
       pop(`+${-dP}`, "fx-heal", ME_POS);
       sfx("heal");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemyKey, enemyHp, playerHp, log]);
 
   useEffect(() => () => {

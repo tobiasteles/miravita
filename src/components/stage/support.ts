@@ -19,6 +19,7 @@ export const clearSlow = () => { try { localStorage.removeItem(KEY); } catch {} 
 export function stageMode(): "3d" | "2d" {
   if (fxLevel() !== "high") return "2d";
   try { if (localStorage.getItem(KEY) === "1") return "2d"; } catch {}
+  try { if (JSON.parse(localStorage.getItem("mv_settings") ?? "{}").scene3d === false) return "2d"; } catch {} // menu Esc → "Cena 3D"
   return webglOk() ? "3d" : "2d";
 }
 // "pending" no servidor e no primeiro render: mostre o 2D até decidir (nunca fica sem tela)

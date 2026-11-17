@@ -11,6 +11,7 @@ export default function EscMenu() {
     sound: 70,
     graphics: "alta",
     notifications: true,
+    scene3d: true,
   });
   useEffect(() => {
     try {
@@ -122,6 +123,14 @@ export default function EscMenu() {
                     }
                   />{" "}
                   Notificações
+                </label>
+                <label className="block">
+                  <input
+                    type="checkbox"
+                    checked={s.scene3d !== false}
+                    onChange={(e) => setS({ ...s, scene3d: e.target.checked })}
+                  />{" "}
+                  Cena 3D na batalha e na cidade (vale ao recarregar a página)
                 </label>
                 <button className={btn} onClick={() => setV("menu")}>
                   Voltar
