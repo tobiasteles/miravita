@@ -1,0 +1,592 @@
+diff --git a/src/app/(game)/play/page.tsx b/src/app/(game)/play/page.tsx
+index 73bee2b..16d9bed 100644
+--- a/src/app/(game)/play/page.tsx
++++ b/src/app/(game)/play/page.tsx
+@@ -11,6 +11,9 @@ import EventBanner from "@/components/game/EventBanner";
+ import GameIcon from "@/components/game/GameIcon";
+ import { HotkeyBar } from "@/components/game/Hotkeys";
+ import { Logo, ClassSeal } from "@/components/brand/Brand";
++import { and, eq, ne } from "drizzle-orm";
++import { db } from "@/db";
++import { characters, partyMembers } from "@/db/schema";
+ import { REALMS } from "@/lib/game/realms";
+ import { realmStatus } from "@/lib/game/realm-schedule";
+ 
+@@ -32,6 +35,21 @@ export default async function Play() {
+     open: rs.open,
+     at: (rs.open ? rs.closesAt : rs.opensAt).toISOString(),
+   };
++  // só leitura, para desenhar a cena: expedição em andamento e colegas do grupo que estão neste mesmo mapa
++  const expAt = c.activity?.exp?.endsAt ?? null;
++  let mates: string[] = [];
++  if (c.currentMapId) {
++    const [mine] = await db.select({ pid: partyMembers.partyId }).from(partyMembers).where(eq(partyMembers.characterId, c.id));
++    if (mine) {
++      const rows = await db
++        .select({ av: characters.avatarId })
++        .from(partyMembers)
++        .innerJoin(characters, eq(characters.id, partyMembers.characterId))
++        .where(and(eq(partyMembers.partyId, mine.pid), eq(characters.currentMapId, c.currentMapId), ne(characters.id, c.id)))
++        .limit(3);
++      mates = rows.map((r) => r.av);
++    }
++  }
+   const rail = "flex shrink-0 flex-col gap-2 lg:w-[clamp(170px,16vw,260px)] lg:overflow-y-auto";
+   return (
+     <main className="mx-auto flex max-w-[1900px] flex-col gap-2 p-2 lg:h-dvh lg:overflow-hidden lg:p-3">
+@@ -91,7 +109,7 @@ export default async function Play() {
+ 
+         {/* centro: a cidade (encaixa na altura da tela, nunca rola) */}
+         <div className="town-box order-1 min-w-0 lg:order-2 lg:flex-1">
+-          <TownMap slug={slug} mapName={mapName} realm={realm} />
++          <TownMap slug={slug} mapName={mapName} realm={realm} expAt={expAt} meAv={c.avatarId} mates={mates} />
+         </div>
+ 
+         {/* direita: luta, Reino e informações do mapa */}
+diff --git a/src/app/globals.css b/src/app/globals.css
+index b00e19b..d6cbb0a 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -792,3 +792,6 @@ html[data-busy] form button {
+   .fx-pop { animation: fx-fade 1s forwards; }
+   .fx-shake, .fx-shake-big, .fx-flash { animation: none; }
+ }
++
++/* ===== Cidade em 3D (Fase 3C): a imagem 2D some só quando a cena 3D está pronta ===== */
++.town[data-scene3d="1"] .town-bg { opacity: 0; transition: opacity 0.3s; }
+diff --git a/src/components/game/TownMap.tsx b/src/components/game/TownMap.tsx
+index f0b5635..4192b64 100644
+--- a/src/components/game/TownMap.tsx
++++ b/src/components/game/TownMap.tsx
+@@ -2,6 +2,7 @@ import Link from "next/link";
+ import type { CSSProperties, ReactNode } from "react";
+ import { bg, variants } from "@/lib/img";
+ import { SPOTS, type Spot } from "@/lib/game/town";
++import TownScene from "@/components/stage/TownScene";
+ import { startBattle, rest } from "@/actions/battle";
+ import SafeImg from "@/components/game/SafeImg";
+ import GameIcon from "@/components/game/GameIcon";
+@@ -49,7 +50,7 @@ const Cap = ({ big, chip, children }: { big?: boolean; chip?: ReactNode; childre
+   </span>
+ );
+ 
+-function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm }) {
++function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm; expAt: number | null }) {
+   const base = `town-spot ${ready ? "" : "town-ph"}`;
+   const ico = !ready && (
+     <span className="town-ico">
+@@ -57,13 +58,21 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+     </span>
+   );
+   const label = `${s.label} — ${s.merchant}`;
++  // expedição ociosa: aviso no próprio prédio (também no modo 2D)
++  const expChip =
++    s.id === "atividades" && expAt ? (
++      <span className="town-chip town-chip-live">
++        <i className="town-live" />
++        {Date.now() >= expAt ? "Expedição pronta!" : <RealmCountdown target={new Date(expAt).toISOString()} label="expedição termina em" />}
++      </span>
++    ) : undefined;
+ 
+   if (s.kind === "link")
+     return (
+-      <Link href={s.href!} aria-label={label} className={`town-wrap ${base}`} style={pos(s)}>
++      <Link href={s.href!} aria-label={label} className={`town-wrap ${base}`} style={pos(s)} data-spot={s.id}>
+         {ico}
+         <Bubble s={s} />
+-        <Cap>
++        <Cap chip={expChip}>
+           <GameIcon name={s.icon} /> {s.label}
+         </Cap>
+       </Link>
+@@ -71,7 +80,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+ 
+   if (s.kind === "soon")
+     return (
+-      <div className={`town-wrap ${base} town-soon`} style={pos(s)} title="Em breve">
++      <div className={`town-wrap ${base} town-soon`} style={pos(s)} data-spot={s.id} title="Em breve">
+         {ico}
+         <Bubble s={s} />
+         <Cap chip={<span className="town-chip">[Em Breve]</span>}>
+@@ -83,7 +92,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+   // PORTÃO DA CIDADE (caça infinita): destaque vermelho pulsante
+   if (s.kind === "gate" || s.kind === "arena")
+     return (
+-      <Link href={s.href!} aria-label={label} className={`town-wrap ${base} town-hunt`} style={pos(s)}>
++      <Link href={s.href!} aria-label={label} className={`town-wrap ${base} town-hunt`} style={pos(s)} data-spot={s.id}>
+         {ico}
+         <span className="town-badge">
+           <GameIcon name="swords" />
+@@ -97,7 +106,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+ 
+   if (s.kind === "rest")
+     return (
+-      <form action={rest} className="town-wrap" style={pos(s)}>
++      <form action={rest} className="town-wrap" style={pos(s)} data-spot={s.id}>
+         <button className={base} aria-label={label}>
+           {ico}
+           <Bubble s={s} />
+@@ -111,7 +120,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+   // ⚔ CAÇADA: destaque vermelho pulsante
+   if (s.kind === "hunt")
+     return (
+-      <form action={startBattle} className="town-wrap" style={pos(s)}>
++      <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
+         <input type="hidden" name="kind" value="hunt" />
+         <button className={`${base} town-hunt`} aria-label={`Caçar monstros em ${mapName}`}>
+           {ico}
+@@ -152,25 +161,26 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
+     </>
+   );
+   return realm.open ? (
+-    <form action={startBattle} className="town-wrap" style={pos(s)}>
++    <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
+       <input type="hidden" name="kind" value="dungeon" />
+       <button className={`${base} town-realm town-realm-open`} aria-label={`Entrar no ${realm.name}`}>{inner}</button>
+     </form>
+   ) : (
+-    <div className={`town-wrap ${base} town-realm town-realm-closed`} style={pos(s)}>{inner}</div>
++    <div className={`town-wrap ${base} town-realm town-realm-closed`} style={pos(s)} data-spot={s.id}>{inner}</div>
+   );
+ }
+ 
+-export default function TownMap({ slug, mapName, realm }: { slug: string; mapName: string; realm: TownRealm }) {
++export default function TownMap({ slug, mapName, realm, expAt = null, meAv, mates = [] }: { slug: string; mapName: string; realm: TownRealm; expAt?: number | null; meAv?: string; mates?: string[] }) {
+   const ready = variants(`/town/${slug}`).length > 0; // sem imagem ainda: mostra os prédios como placeholders clicáveis
+   return (
+     <div className="town town-fit" style={{ background: "linear-gradient(160deg,#241a5a,#10102e 60%,#0b2a3a)" }}>
+       <div className="town-bg" style={{ background: bg(`/town/${slug}`, "center/cover no-repeat") }} />
++      {meAv && <TownScene slug={slug} realmOpen={realm.open} expEndsAt={expAt} meAv={meAv} mates={mates} />}
+       <div className="town-title">
+         <GameIcon name="pin" className="text-amber-300" /> {mapName}
+       </div>
+       {SPOTS.map((s) => (
+-        <SpotView key={s.id} s={s} ready={ready} mapName={mapName} realm={realm} />
++        <SpotView key={s.id} s={s} ready={ready} mapName={mapName} realm={realm} expAt={expAt} />
+       ))}
+     </div>
+   );
+diff --git a/src/components/stage/TownScene.tsx b/src/components/stage/TownScene.tsx
+new file mode 100644
+index 0000000..c67f868
+--- /dev/null
++++ b/src/components/stage/TownScene.tsx
+@@ -0,0 +1,70 @@
++"use client";
++import dynamic from "next/dynamic";
++import { useEffect, useRef, useState } from "react";
++import { variants } from "@/lib/img";
++import { SPOTS, expPhase, isNight } from "@/lib/game/town";
++import { useToast } from "@/components/ui";
++import { useStageBus } from "./bus";
++import { markSlow, useStageMode } from "./support";
++
++// cena 3D da cidade: chunk separado, só carrega se o aparelho aguentar. Os prédios clicáveis continuam sendo o DOM do TownMap.
++const TownStage = dynamic(() => import("./TownStage"), { ssr: false });
++const avUrls = (av: string) => [...variants(`/battle/player/${av}`), ...variants(`/avatars/${av}`)];
++
++export default function TownScene({ slug, realmOpen, expEndsAt, meAv, mates }: { slug: string; realmOpen: boolean; expEndsAt: number | null; meAv: string; mates: string[] }) {
++  const mode = useStageMode(), bus = useStageBus(), toast = useToast();
++  const root = useRef<HTMLDivElement>(null);
++  const [hot, setHot] = useState<string | null>(null);
++  const [night, setNight] = useState(false), [now, setNow] = useState(0);
++  const [ready, setReady] = useState(false), [slow, setSlow] = useState(false);
++  const is3d = mode === "3d" && !slow;
++
++  useEffect(() => { // relógio do navegador: dia/noite e a expedição passando de "em andamento" para "pronta"
++    const tick = () => { setNight(isNight(new Date().getHours())); setNow(Date.now()); };
++    tick();
++    const t = setInterval(tick, 30000);
++    return () => clearInterval(t);
++  }, []);
++
++  useEffect(() => { // mouse/foco/clique nos pontos do DOM (data-spot) comandam o brilho e o anel de energia da cena
++    const town = root.current?.closest(".town");
++    if (!town || !is3d) return;
++    const id = (e: Event) => (e.target as HTMLElement).closest?.("[data-spot]")?.getAttribute("data-spot") ?? null;
++    const over = (e: Event) => setHot(id(e)), out = () => setHot(null);
++    const down = (e: Event) => { const s = SPOTS.find((x) => x.id === id(e)); if (s) bus.emit({ k: "pulse", x: s.x, y: s.y, el: s.glow }); };
++    town.addEventListener("pointerover", over); town.addEventListener("pointerout", out);
++    town.addEventListener("focusin", over); town.addEventListener("focusout", out);
++    town.addEventListener("pointerdown", down);
++    return () => {
++      town.removeEventListener("pointerover", over); town.removeEventListener("pointerout", out);
++      town.removeEventListener("focusin", over); town.removeEventListener("focusout", out);
++      town.removeEventListener("pointerdown", down);
++    };
++  }, [bus, is3d]);
++
++  useEffect(() => { // esconde a imagem 2D só quando o 3D já está pronto
++    const t = root.current?.closest<HTMLElement>(".town");
++    if (!t) return;
++    if (is3d && ready) t.dataset.scene3d = "1"; else delete t.dataset.scene3d;
++    return () => { delete t.dataset.scene3d; };
++  }, [is3d, ready]);
++
++  return (
++    <div ref={root} aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden" style={{ borderRadius: "inherit" }}>
++      {is3d && (
++        <TownStage
++          bus={bus}
++          bgUrls={variants(`/town/${slug}`)}
++          meUrls={avUrls(meAv)}
++          mates={mates.map(avUrls)}
++          night={night}
++          hot={hot}
++          realmOpen={realmOpen}
++          exp={expPhase(expEndsAt, now || Date.now())}
++          onReady={() => setReady(true)}
++          onSlow={() => { markSlow(); setSlow(true); setReady(false); toast("O aparelho ficou lento: voltamos ao modo 2D.", "warn"); }}
++        />
++      )}
++    </div>
++  );
++}
+diff --git a/src/components/stage/TownStage.tsx b/src/components/stage/TownStage.tsx
+new file mode 100644
+index 0000000..90a53c9
+--- /dev/null
++++ b/src/components/stage/TownStage.tsx
+@@ -0,0 +1,45 @@
++"use client";
++import { useEffect, useState } from "react";
++import { SPOTS } from "@/lib/game/town";
++import type { StageBus } from "./bus";
++import GameStage from "./core/GameStage";
++import { Actor, Backdrop, Tint } from "./core/layers";
++import { useTex } from "./core/textures";
++import { Ambient, Beacon, Glow, Mist, Portal } from "./core/town";
++
++// Palco 3D da cidade: a arte da cidade fica no plano z=0 (alinhada com os pontos clicáveis do DOM, que continuam sendo os botões de verdade);
++// névoa, vaga-lumes e personagens ficam à frente, em profundidades diferentes, e criam a paralaxe.
++const MATE_X = [43, 61, 37], MATE_Y = [70, 71, 74];
++const reino = SPOTS.find((s) => s.id === "reino")!, ativ = SPOTS.find((s) => s.id === "atividades")!;
++
++type Props = {
++  bus: StageBus; bgUrls: string[]; meUrls: string[]; mates: string[][];
++  night: boolean; hot: string | null; realmOpen: boolean; exp: "idle" | "running" | "ready";
++  onReady: () => void; onSlow: () => void;
++};
++export default function TownStage({ bus, bgUrls, meUrls, mates, night, hot, realmOpen, exp, onReady, onSlow }: Props) {
++  const bgT = useTex(bgUrls);
++  const [ready, setReady] = useState(false);
++  useEffect(() => {
++    if (ready) return;
++    if (bgT) { setReady(true); onReady(); return; }
++    const t = setTimeout(() => { setReady(true); onReady(); }, 4000);
++    return () => clearTimeout(t);
++  }, [bgT, ready, onReady]);
++  return (
++    <div aria-hidden className="absolute inset-0 transition-opacity duration-300" style={{ opacity: ready ? 1 : 0 }}>
++      <GameStage bus={bus} sky="#0b0a1f" sway={0.4} onSlow={onSlow}>
++        <Backdrop urls={bgUrls} z={0} overscan={1.015} dim={night ? 0.72 : 1} tint={night ? "#9fb0ff" : "#ffffff"} />
++        {SPOTS.map((s) => <Glow key={s.id} s={s} hot={hot === s.id} />)}
++        <Portal s={reino} open={realmOpen} />
++        {exp !== "idle" && <Beacon x={ativ.x} y={ativ.y} color={exp === "ready" ? "#34d399" : "#fbbf24"} />}
++        <Actor id="me" urls={meUrls} x={52} y={72} z={1.2} h={26} />
++        {mates.map((u, i) => <Actor key={i} id={`mate${i}`} urls={u} x={MATE_X[i]} y={MATE_Y[i]} z={1} h={21} />)}
++        <Mist />
++        <Ambient night={night} />
++        {night && <Tint color="#0b1030" opacity={0.34} />}
++      </GameStage>
++      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse at 50% 45%, transparent 55%, #0007 100%)" }} />
++    </div>
++  );
++}
+diff --git a/src/components/stage/core/GameStage.tsx b/src/components/stage/core/GameStage.tsx
+index 715d817..7d8cf1f 100644
+--- a/src/components/stage/core/GameStage.tsx
++++ b/src/components/stage/core/GameStage.tsx
+@@ -12,6 +12,7 @@ const FOV = 30, TAN = Math.tan((FOV * Math.PI) / 360), D = 5 / TAN;
+ 
+ export type GameStageProps = {
+   bus: StageBus;
++  sway?: number; // 0–1: intensidade do balanço da câmera (cidade usa pouco, para não desalinhar dos pontos clicáveis)
+   animate?: boolean; // leve movimento de câmera/respiração (a cena pede quadros a ~30 fps); false = só redesenha quando algo acontece
+   sky?: string;
+   interactive?: boolean; // false (padrão): o canvas não captura o mouse, então botões do DOM por cima continuam clicáveis
+@@ -19,7 +20,7 @@ export type GameStageProps = {
+   children: React.ReactNode;
+ };
+ 
+-function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
++function Rig({ animate, sway, onSlow }: { animate: boolean; sway: number; onSlow?: () => void }) {
+   const st = useStage();
+   const camera = useThree((s) => s.camera);
+   const gl = useThree((s) => s.gl);
+@@ -46,8 +47,8 @@ function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
+   useFrame((_, dtRaw) => {
+     const dt = Math.min(dtRaw, 0.1);
+     clock.current += dt;
+-    const tx = animate ? Math.sin(clock.current * 0.35) * 0.18 + ptr.current.x * 0.35 : 0;
+-    const ty = animate ? Math.sin(clock.current * 0.27 + 1) * 0.08 - ptr.current.y * 0.18 : 0;
++    const tx = animate ? (Math.sin(clock.current * 0.35) * 0.18 + ptr.current.x * 0.35) * sway : 0;
++    const ty = animate ? (Math.sin(clock.current * 0.27 + 1) * 0.08 - ptr.current.y * 0.18) * sway : 0;
+     const k = Math.min(1, dt * 3);
+     cur.current.x += (tx - cur.current.x) * k;
+     cur.current.y += (ty - cur.current.y) * k;
+@@ -81,7 +82,7 @@ function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
+   return null;
+ }
+ 
+-function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; animate: boolean; onSlow?: () => void; visible: { v: boolean }; children: React.ReactNode }) {
++function Scene({ bus, animate, sway, onSlow, visible, children }: { bus: StageBus; animate: boolean; sway: number; onSlow?: () => void; visible: { v: boolean }; children: React.ReactNode }) {
+   const size = useThree((s) => s.size);
+   const invalidate = useThree((s) => s.invalidate);
+   const [actors] = useState(() => new Map<string, ActorRef>());
+@@ -96,7 +97,7 @@ function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; ani
+   }, [size.width, size.height, actors, shake, busy, visible, fx, invalidate]);
+   return (
+     <StageCtx.Provider value={stage}>
+-      <Rig animate={animate} onSlow={onSlow} />
++      <Rig animate={animate} sway={sway} onSlow={onSlow} />
+       <Director bus={bus} />
+       {children}
+       <Particles />
+@@ -104,7 +105,7 @@ function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; ani
+   );
+ }
+ 
+-export default function GameStage({ bus, animate = true, sky = "#0c0a1f", interactive = false, onSlow, children }: GameStageProps) {
++export default function GameStage({ bus, animate = true, sway = 1, sky = "#0c0a1f", interactive = false, onSlow, children }: GameStageProps) {
+   const box = useRef<HTMLDivElement>(null);
+   const [visible] = useState(() => ({ v: true }));
+   useEffect(() => { // fora da tela: para de pedir quadros
+@@ -118,7 +119,7 @@ export default function GameStage({ bus, animate = true, sky = "#0c0a1f", intera
+     <div ref={box} aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: interactive ? "auto" : "none" }}>
+       <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: FOV, position: [0, 0, D], near: 1, far: 80 }} gl={{ antialias: false, powerPreference: "low-power", alpha: false }}>
+         <color attach="background" args={[sky]} />
+-        <Scene bus={bus} animate={animate} onSlow={onSlow} visible={visible}>{children}</Scene>
++        <Scene bus={bus} animate={animate} sway={sway} onSlow={onSlow} visible={visible}>{children}</Scene>
+       </Canvas>
+     </div>
+   );
+diff --git a/src/components/stage/core/director.tsx b/src/components/stage/core/director.tsx
+index e8c3773..7589629 100644
+--- a/src/components/stage/core/director.tsx
++++ b/src/components/stage/core/director.tsx
+@@ -96,6 +96,11 @@ export function Director({ bus }: { bus: StageBus }) {
+           at(0, () => { st.shake.amp = Math.max(st.shake.amp, 0.3); st.fx.burst({ ...mid(M), color: "#f43f5e", n: 24, speed: 2, life: 0.8, gravity: 2 }); });
+           break;
+         }
++        case "pulse": {
++          const [px, py, pz] = st.at(e.x, e.y, 0.4);
++          st.fx.burst({ x: px, y: py, z: pz, color: fxColor(e.el, "#a78bfa"), n: 24, mode: "ring", speed: 2.6, life: 0.6, gravity: 0 });
++          break;
++        }
+         case "flee": {
+           const M = act("me");
+           if (!M) break;
+diff --git a/src/components/stage/core/town.tsx b/src/components/stage/core/town.tsx
+new file mode 100644
+index 0000000..ce02f39
+--- /dev/null
++++ b/src/components/stage/core/town.tsx
+@@ -0,0 +1,148 @@
++"use client";
++import { useFrame } from "@react-three/fiber";
++import { useEffect, useMemo, useRef } from "react";
++import { AdditiveBlending, BufferAttribute, BufferGeometry, CanvasTexture, Color, SRGBColorSpace } from "three";
++import type { Mesh, MeshBasicMaterial } from "three";
++import type { Spot } from "@/lib/game/town";
++import { useStage } from "./context";
++
++// Camadas da cidade (/play). Tudo é desenho: o que o jogador clica continua sendo o DOM.
++function canvasTex(draw: (g: CanvasRenderingContext2D) => void, size = 128) {
++  const c = document.createElement("canvas");
++  c.width = c.height = size;
++  const g = c.getContext("2d");
++  if (g) draw(g);
++  const t = new CanvasTexture(c);
++  t.colorSpace = SRGBColorSpace;
++  return t;
++}
++let softT: CanvasTexture | null = null, ringT: CanvasTexture | null = null;
++const soft = () => (softT ??= canvasTex((g) => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, "rgba(255,255,255,1)"); r.addColorStop(0.5, "rgba(255,255,255,.35)"); r.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = r; g.fillRect(0, 0, 128, 128); }));
++const ring = () => (ringT ??= canvasTex((g) => { const r = g.createRadialGradient(64, 64, 34, 64, 64, 62); r.addColorStop(0, "rgba(255,255,255,0)"); r.addColorStop(0.65, "rgba(255,255,255,.95)"); r.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = r; g.fillRect(0, 0, 128, 128); }));
++
++// brilho do prédio: acende quando o mouse/foco está no ponto clicável do DOM; os de ação (caça, portão, arena) pulsam sempre de leve
++export function Glow({ s, hot }: { s: Spot; hot: boolean }) {
++  const st = useStage();
++  const m = useRef<MeshBasicMaterial>(null);
++  const base = s.kind === "hunt" || s.kind === "gate" || s.kind === "arena" ? 0.16 : 0;
++  useFrame(({ clock }) => {
++    if (!m.current) return;
++    const target = hot ? 0.6 : base * (0.6 + 0.4 * Math.sin(clock.elapsedTime * 2.2));
++    m.current.opacity += (target - m.current.opacity) * 0.2;
++    if (Math.abs(target - m.current.opacity) > 0.01) st.invalidate();
++  });
++  const [x, y, z] = st.at(s.x, s.y, 0.05), v = st.vis(0.05);
++  return (
++    <mesh position={[x, y, z]} renderOrder={2}>
++      <planeGeometry args={[(s.w / 100) * v.w * 1.5, (s.h / 100) * v.h * 1.5]} />
++      <meshBasicMaterial ref={m} map={soft()} color={s.glow} transparent opacity={0} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++    </mesh>
++  );
++}
++
++// portal do Reino: aberto = dois anéis girando em sentidos opostos; fechado = selo escuro
++export function Portal({ s, open }: { s: Spot; open: boolean }) {
++  const st = useStage();
++  const a = useRef<Mesh>(null), b = useRef<Mesh>(null);
++  useFrame(({ clock }, dt) => {
++    if (!open || !a.current || !b.current) return;
++    a.current.rotation.z += dt * 0.6;
++    b.current.rotation.z -= dt * 0.9;
++    const k = 1 + 0.05 * Math.sin(clock.elapsedTime * 2);
++    a.current.scale.setScalar(k);
++    b.current.scale.setScalar(2 - k);
++  });
++  const [x, y, z] = st.at(s.x, s.y, 0.08), v = st.vis(0.08);
++  const d = Math.min((s.w / 100) * v.w, (s.h / 100) * v.h) * 1.35;
++  if (!open)
++    return (
++      <mesh position={[x, y, z]} renderOrder={3}>
++        <planeGeometry args={[d * 1.3, d * 1.3]} />
++        <meshBasicMaterial map={soft()} color="#05030f" transparent opacity={0.4} depthWrite={false} toneMapped={false} />
++      </mesh>
++    );
++  return (
++    <>
++      <mesh ref={a} position={[x, y, z]} renderOrder={3}>
++        <planeGeometry args={[d, d]} />
++        <meshBasicMaterial map={ring()} color="#8b5cf6" transparent opacity={0.8} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++      </mesh>
++      <mesh ref={b} position={[x, y, z + 0.01]} renderOrder={3}>
++        <planeGeometry args={[d * 0.8, d * 0.8]} />
++        <meshBasicMaterial map={ring()} color="#22d3ee" transparent opacity={0.7} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++      </mesh>
++    </>
++  );
++}
++
++// anel pulsante sobre um prédio (expedição em andamento ou pronta)
++export function Beacon({ x: px, y: py, color }: { x: number; y: number; color: string }) {
++  const st = useStage();
++  const m = useRef<Mesh>(null);
++  useFrame(({ clock }) => {
++    if (!m.current) return;
++    const k = (clock.elapsedTime * 0.8) % 1;
++    m.current.scale.setScalar(0.7 + k * 0.7);
++    (m.current.material as MeshBasicMaterial).opacity = 0.85 * (1 - k);
++  });
++  const [x, y, z] = st.at(px, py, 0.1), d = st.vis(0.1).h * 0.16;
++  return (
++    <mesh ref={m} position={[x, y, z]} renderOrder={4}>
++      <planeGeometry args={[d, d]} />
++      <meshBasicMaterial map={ring()} color={color} transparent opacity={0.8} depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++    </mesh>
++  );
++}
++
++// bancos de névoa à frente da cidade: camadas em profundidades diferentes dão paralaxe de verdade
++export function Mist() {
++  const st = useStage();
++  const refs = useRef<(Mesh | null)[]>([]);
++  const L = [{ z: 1.8, o: 0.09, y: -0.28, s: 1.5 }, { z: 2.6, o: 0.07, y: 0.12, s: 1.8 }, { z: 3.4, o: 0.06, y: -0.05, s: 2.1 }];
++  useFrame(({ clock }) => { refs.current.forEach((m, i) => { if (m) m.position.x = Math.sin(clock.elapsedTime * 0.05 + i * 2) * st.vis(L[i].z).w * 0.12; }); });
++  return (
++    <>
++      {L.map((l, i) => {
++        const v = st.vis(l.z);
++        return (
++          <mesh key={i} ref={(m) => { refs.current[i] = m; }} position={[0, l.y * v.h, l.z]} renderOrder={6}>
++            <planeGeometry args={[v.w * l.s, v.h * 0.55]} />
++            <meshBasicMaterial map={soft()} color="#c4b5fd" transparent opacity={l.o} depthWrite={false} toneMapped={false} />
++          </mesh>
++        );
++      })}
++    </>
++  );
++}
++
++// partículas de ambiente: vaga-lumes à noite, poeira dourada de dia
++export function Ambient({ night }: { night: boolean }) {
++  const st = useStage();
++  const N = 36, v = st.vis(1.5);
++  const S = useMemo(() => {
++    const base = new Float32Array(N * 3), ph = new Float32Array(N);
++    for (let i = 0; i < N; i++) { base[i * 3] = (Math.random() - 0.5) * v.w; base[i * 3 + 1] = (Math.random() - 0.5) * v.h * 0.9; base[i * 3 + 2] = 0.5 + Math.random() * 2.5; ph[i] = Math.random() * 6.28; }
++    return { base, ph, pos: new Float32Array(N * 3), col: new Float32Array(N * 4) };
++  }, [v.w, v.h]);
++  const geo = useMemo(() => { const g = new BufferGeometry(); g.setAttribute("position", new BufferAttribute(S.pos, 3)); g.setAttribute("color", new BufferAttribute(S.col, 4)); return g; }, [S]);
++  useEffect(() => () => geo.dispose(), [geo]);
++  const c = useMemo(() => new Color(night ? "#d9f99d" : "#fde68a"), [night]);
++  useFrame(({ clock }) => {
++    const t = clock.elapsedTime;
++    for (let i = 0; i < N; i++) {
++      const i3 = i * 3, i4 = i * 4;
++      S.pos[i3] = S.base[i3] + Math.sin(t * 0.3 + S.ph[i]) * 0.6;
++      S.pos[i3 + 1] = S.base[i3 + 1] + Math.cos(t * 0.25 + S.ph[i] * 1.3) * 0.5;
++      S.pos[i3 + 2] = S.base[i3 + 2];
++      S.col[i4] = c.r; S.col[i4 + 1] = c.g; S.col[i4 + 2] = c.b;
++      S.col[i4 + 3] = night ? 0.35 + 0.65 * Math.max(0, Math.sin(t * 1.4 + S.ph[i] * 3)) : 0.28;
++    }
++    geo.attributes.position.needsUpdate = true;
++    geo.attributes.color.needsUpdate = true;
++  });
++  return (
++    <points geometry={geo} frustumCulled={false} renderOrder={8}>
++      <pointsMaterial map={soft()} size={night ? 0.3 : 0.2} sizeAttenuation vertexColors transparent depthWrite={false} blending={AdditiveBlending} toneMapped={false} />
++    </points>
++  );
++}
+diff --git a/src/lib/game/fx-events.ts b/src/lib/game/fx-events.ts
+index aebf728..9ad2e79 100644
+--- a/src/lib/game/fx-events.ts
++++ b/src/lib/game/fx-events.ts
+@@ -7,4 +7,5 @@ export type StageEvent =
+   | { k: "heal"; to: Who; d?: number }
+   | { k: "skill"; from: Who; el?: string }
+   | { k: "summon"; el?: string }
+-  | { k: "win" | "lose" | "flee" };
++  | { k: "win" | "lose" | "flee" }
++  | { k: "pulse"; x: number; y: number; el?: string }; // só cliente: anel de energia em (x%, y%) da cena, ex.: clique num prédio
+diff --git a/src/lib/game/town.ts b/src/lib/game/town.ts
+index b1c3a15..ae996e3 100644
+--- a/src/lib/game/town.ts
++++ b/src/lib/game/town.ts
+@@ -45,3 +45,9 @@ export const WORLD_PINS: Record<string, { x: number; y: number }> = {
+   "pantano-radioativo": { x: 46, y: 26 },
+   "abismo-do-cacador": { x: 82, y: 20 },
+ };
++
++// ── estado visual da cidade (só desenho; nada daqui entra em regra do jogo) ──
++// fase da expedição ociosa: nenhuma, em andamento ou pronta para coletar (activity.exp é limpa ao coletar)
++export const expPhase = (endsAt: number | null | undefined, now: number): "idle" | "running" | "ready" => (!endsAt ? "idle" : now >= endsAt ? "ready" : "running");
++// noite visual pelo relógio do navegador (19h–6h)
++export const isNight = (hour: number) => hour >= 19 || hour < 6;
+diff --git a/tests/town.test.mts b/tests/town.test.mts
+new file mode 100644
+index 0000000..7ea0ccd
+--- /dev/null
++++ b/tests/town.test.mts
+@@ -0,0 +1,28 @@
++// npm test  (cidade: dados de exibição usados pela cena 3D)
++import test from "node:test";
++import assert from "node:assert/strict";
++import { SPOTS, expPhase, isNight } from "../src/lib/game/town";
++
++test("expedição: nenhuma, em andamento ou pronta", () => {
++  assert.equal(expPhase(null, 1000), "idle");
++  assert.equal(expPhase(undefined, 1000), "idle");
++  assert.equal(expPhase(2000, 1000), "running");
++  assert.equal(expPhase(1000, 1000), "ready");
++  assert.equal(expPhase(500, 1000), "ready");
++});
++test("noite visual: 19h às 6h", () => {
++  assert.equal(isNight(18), false);
++  assert.equal(isNight(19), true);
++  assert.equal(isNight(2), true);
++  assert.equal(isNight(6), false);
++  assert.equal(isNight(12), false);
++});
++test("pontos clicáveis: ids únicos, dentro do quadro e com o portal do Reino", () => {
++  assert.equal(new Set(SPOTS.map((s) => s.id)).size, SPOTS.length);
++  for (const s of SPOTS) {
++    assert.ok(s.x - s.w / 2 >= 0 && s.x + s.w / 2 <= 100, `${s.id} x`);
++    assert.ok(s.y - s.h / 2 >= 0 && s.y + s.h / 2 <= 100, `${s.id} y`);
++  }
++  assert.ok(SPOTS.find((s) => s.id === "reino" && s.kind === "realm"));
++  assert.ok(SPOTS.find((s) => s.id === "atividades"));
++});

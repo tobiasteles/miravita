@@ -45,3 +45,9 @@ export const WORLD_PINS: Record<string, { x: number; y: number }> = {
   "pantano-radioativo": { x: 46, y: 26 },
   "abismo-do-cacador": { x: 82, y: 20 },
 };
+
+// ── estado visual da cidade (só desenho; nada daqui entra em regra do jogo) ──
+// fase da expedição ociosa: nenhuma, em andamento ou pronta para coletar (activity.exp é limpa ao coletar)
+export const expPhase = (endsAt: number | null | undefined, now: number): "idle" | "running" | "ready" => (!endsAt ? "idle" : now >= endsAt ? "ready" : "running");
+// noite visual pelo relógio do navegador (19h–6h)
+export const isNight = (hour: number) => hour >= 19 || hour < 6;

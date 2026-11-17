@@ -12,6 +12,7 @@ const FOV = 30, TAN = Math.tan((FOV * Math.PI) / 360), D = 5 / TAN;
 
 export type GameStageProps = {
   bus: StageBus;
+  sway?: number; // 0–1: intensidade do balanço da câmera (cidade usa pouco, para não desalinhar dos pontos clicáveis)
   animate?: boolean; // leve movimento de câmera/respiração (a cena pede quadros a ~30 fps); false = só redesenha quando algo acontece
   sky?: string;
   interactive?: boolean; // false (padrão): o canvas não captura o mouse, então botões do DOM por cima continuam clicáveis
@@ -19,7 +20,7 @@ export type GameStageProps = {
   children: React.ReactNode;
 };
 
-function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
+function Rig({ animate, sway, onSlow }: { animate: boolean; sway: number; onSlow?: () => void }) {
   const st = useStage();
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
@@ -46,8 +47,8 @@ function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
   useFrame((_, dtRaw) => {
     const dt = Math.min(dtRaw, 0.1);
     clock.current += dt;
-    const tx = animate ? Math.sin(clock.current * 0.35) * 0.18 + ptr.current.x * 0.35 : 0;
-    const ty = animate ? Math.sin(clock.current * 0.27 + 1) * 0.08 - ptr.current.y * 0.18 : 0;
+    const tx = animate ? (Math.sin(clock.current * 0.35) * 0.18 + ptr.current.x * 0.35) * sway : 0;
+    const ty = animate ? (Math.sin(clock.current * 0.27 + 1) * 0.08 - ptr.current.y * 0.18) * sway : 0;
     const k = Math.min(1, dt * 3);
     cur.current.x += (tx - cur.current.x) * k;
     cur.current.y += (ty - cur.current.y) * k;
@@ -81,7 +82,7 @@ function Rig({ animate, onSlow }: { animate: boolean; onSlow?: () => void }) {
   return null;
 }
 
-function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; animate: boolean; onSlow?: () => void; visible: { v: boolean }; children: React.ReactNode }) {
+function Scene({ bus, animate, sway, onSlow, visible, children }: { bus: StageBus; animate: boolean; sway: number; onSlow?: () => void; visible: { v: boolean }; children: React.ReactNode }) {
   const size = useThree((s) => s.size);
   const invalidate = useThree((s) => s.invalidate);
   const [actors] = useState(() => new Map<string, ActorRef>());
@@ -96,7 +97,7 @@ function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; ani
   }, [size.width, size.height, actors, shake, busy, visible, fx, invalidate]);
   return (
     <StageCtx.Provider value={stage}>
-      <Rig animate={animate} onSlow={onSlow} />
+      <Rig animate={animate} sway={sway} onSlow={onSlow} />
       <Director bus={bus} />
       {children}
       <Particles />
@@ -104,7 +105,7 @@ function Scene({ bus, animate, onSlow, visible, children }: { bus: StageBus; ani
   );
 }
 
-export default function GameStage({ bus, animate = true, sky = "#0c0a1f", interactive = false, onSlow, children }: GameStageProps) {
+export default function GameStage({ bus, animate = true, sway = 1, sky = "#0c0a1f", interactive = false, onSlow, children }: GameStageProps) {
   const box = useRef<HTMLDivElement>(null);
   const [visible] = useState(() => ({ v: true }));
   useEffect(() => { // fora da tela: para de pedir quadros
@@ -118,7 +119,7 @@ export default function GameStage({ bus, animate = true, sky = "#0c0a1f", intera
     <div ref={box} aria-hidden style={{ position: "absolute", inset: 0, pointerEvents: interactive ? "auto" : "none" }}>
       <Canvas frameloop="demand" dpr={[1, 1.5]} camera={{ fov: FOV, position: [0, 0, D], near: 1, far: 80 }} gl={{ antialias: false, powerPreference: "low-power", alpha: false }}>
         <color attach="background" args={[sky]} />
-        <Scene bus={bus} animate={animate} onSlow={onSlow} visible={visible}>{children}</Scene>
+        <Scene bus={bus} animate={animate} sway={sway} onSlow={onSlow} visible={visible}>{children}</Scene>
       </Canvas>
     </div>
   );

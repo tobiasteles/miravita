@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { bg, variants } from "@/lib/img";
 import { SPOTS, type Spot } from "@/lib/game/town";
+import TownScene from "@/components/stage/TownScene";
 import { startBattle, rest } from "@/actions/battle";
 import SafeImg from "@/components/game/SafeImg";
 import GameIcon from "@/components/game/GameIcon";
@@ -49,7 +50,7 @@ const Cap = ({ big, chip, children }: { big?: boolean; chip?: ReactNode; childre
   </span>
 );
 
-function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm }) {
+function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm; expAt: number | null }) {
   const base = `town-spot ${ready ? "" : "town-ph"}`;
   const ico = !ready && (
     <span className="town-ico">
@@ -57,13 +58,21 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
     </span>
   );
   const label = `${s.label} — ${s.merchant}`;
+  // expedição ociosa: aviso no próprio prédio (também no modo 2D)
+  const expChip =
+    s.id === "atividades" && expAt ? (
+      <span className="town-chip town-chip-live">
+        <i className="town-live" />
+        {Date.now() >= expAt ? "Expedição pronta!" : <RealmCountdown target={new Date(expAt).toISOString()} label="expedição termina em" />}
+      </span>
+    ) : undefined;
 
   if (s.kind === "link")
     return (
-      <Link href={s.href!} aria-label={label} className={`town-wrap ${base}`} style={pos(s)}>
+      <Link href={s.href!} aria-label={label} className={`town-wrap ${base}`} style={pos(s)} data-spot={s.id}>
         {ico}
         <Bubble s={s} />
-        <Cap>
+        <Cap chip={expChip}>
           <GameIcon name={s.icon} /> {s.label}
         </Cap>
       </Link>
@@ -71,7 +80,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
 
   if (s.kind === "soon")
     return (
-      <div className={`town-wrap ${base} town-soon`} style={pos(s)} title="Em breve">
+      <div className={`town-wrap ${base} town-soon`} style={pos(s)} data-spot={s.id} title="Em breve">
         {ico}
         <Bubble s={s} />
         <Cap chip={<span className="town-chip">[Em Breve]</span>}>
@@ -83,7 +92,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
   // PORTÃO DA CIDADE (caça infinita): destaque vermelho pulsante
   if (s.kind === "gate" || s.kind === "arena")
     return (
-      <Link href={s.href!} aria-label={label} className={`town-wrap ${base} town-hunt`} style={pos(s)}>
+      <Link href={s.href!} aria-label={label} className={`town-wrap ${base} town-hunt`} style={pos(s)} data-spot={s.id}>
         {ico}
         <span className="town-badge">
           <GameIcon name="swords" />
@@ -97,7 +106,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
 
   if (s.kind === "rest")
     return (
-      <form action={rest} className="town-wrap" style={pos(s)}>
+      <form action={rest} className="town-wrap" style={pos(s)} data-spot={s.id}>
         <button className={base} aria-label={label}>
           {ico}
           <Bubble s={s} />
@@ -111,7 +120,7 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
   // ⚔ CAÇADA: destaque vermelho pulsante
   if (s.kind === "hunt")
     return (
-      <form action={startBattle} className="town-wrap" style={pos(s)}>
+      <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
         <input type="hidden" name="kind" value="hunt" />
         <button className={`${base} town-hunt`} aria-label={`Caçar monstros em ${mapName}`}>
           {ico}
@@ -152,25 +161,26 @@ function SpotView({ s, ready, mapName, realm }: { s: Spot; ready: boolean; mapNa
     </>
   );
   return realm.open ? (
-    <form action={startBattle} className="town-wrap" style={pos(s)}>
+    <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
       <input type="hidden" name="kind" value="dungeon" />
       <button className={`${base} town-realm town-realm-open`} aria-label={`Entrar no ${realm.name}`}>{inner}</button>
     </form>
   ) : (
-    <div className={`town-wrap ${base} town-realm town-realm-closed`} style={pos(s)}>{inner}</div>
+    <div className={`town-wrap ${base} town-realm town-realm-closed`} style={pos(s)} data-spot={s.id}>{inner}</div>
   );
 }
 
-export default function TownMap({ slug, mapName, realm }: { slug: string; mapName: string; realm: TownRealm }) {
+export default function TownMap({ slug, mapName, realm, expAt = null, meAv, mates = [] }: { slug: string; mapName: string; realm: TownRealm; expAt?: number | null; meAv?: string; mates?: string[] }) {
   const ready = variants(`/town/${slug}`).length > 0; // sem imagem ainda: mostra os prédios como placeholders clicáveis
   return (
     <div className="town town-fit" style={{ background: "linear-gradient(160deg,#241a5a,#10102e 60%,#0b2a3a)" }}>
       <div className="town-bg" style={{ background: bg(`/town/${slug}`, "center/cover no-repeat") }} />
+      {meAv && <TownScene slug={slug} realmOpen={realm.open} expEndsAt={expAt} meAv={meAv} mates={mates} />}
       <div className="town-title">
         <GameIcon name="pin" className="text-amber-300" /> {mapName}
       </div>
       {SPOTS.map((s) => (
-        <SpotView key={s.id} s={s} ready={ready} mapName={mapName} realm={realm} />
+        <SpotView key={s.id} s={s} ready={ready} mapName={mapName} realm={realm} expAt={expAt} />
       ))}
     </div>
   );

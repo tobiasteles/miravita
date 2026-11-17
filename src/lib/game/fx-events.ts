@@ -7,4 +7,5 @@ export type StageEvent =
   | { k: "heal"; to: Who; d?: number }
   | { k: "skill"; from: Who; el?: string }
   | { k: "summon"; el?: string }
-  | { k: "win" | "lose" | "flee" };
+  | { k: "win" | "lose" | "flee" }
+  | { k: "pulse"; x: number; y: number; el?: string }; // só cliente: anel de energia em (x%, y%) da cena, ex.: clique num prédio

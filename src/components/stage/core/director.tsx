@@ -96,6 +96,11 @@ export function Director({ bus }: { bus: StageBus }) {
           at(0, () => { st.shake.amp = Math.max(st.shake.amp, 0.3); st.fx.burst({ ...mid(M), color: "#f43f5e", n: 24, speed: 2, life: 0.8, gravity: 2 }); });
           break;
         }
+        case "pulse": {
+          const [px, py, pz] = st.at(e.x, e.y, 0.4);
+          st.fx.burst({ x: px, y: py, z: pz, color: fxColor(e.el, "#a78bfa"), n: 24, mode: "ring", speed: 2.6, life: 0.6, gravity: 0 });
+          break;
+        }
         case "flee": {
           const M = act("me");
           if (!M) break;

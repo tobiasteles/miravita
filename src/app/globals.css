@@ -792,3 +792,6 @@ html[data-busy] form button {
   .fx-pop { animation: fx-fade 1s forwards; }
   .fx-shake, .fx-shake-big, .fx-flash { animation: none; }
 }
+
+/* ===== Cidade em 3D (Fase 3C): a imagem 2D some só quando a cena 3D está pronta ===== */
+.town[data-scene3d="1"] .town-bg { opacity: 0; transition: opacity 0.3s; }

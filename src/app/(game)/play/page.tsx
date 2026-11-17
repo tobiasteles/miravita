@@ -11,6 +11,9 @@ import EventBanner from "@/components/game/EventBanner";
 import GameIcon from "@/components/game/GameIcon";
 import { HotkeyBar } from "@/components/game/Hotkeys";
 import { Logo, ClassSeal } from "@/components/brand/Brand";
+import { and, eq, ne } from "drizzle-orm";
+import { db } from "@/db";
+import { characters, partyMembers } from "@/db/schema";
 import { REALMS } from "@/lib/game/realms";
 import { realmStatus } from "@/lib/game/realm-schedule";
 
@@ -32,6 +35,21 @@ export default async function Play() {
     open: rs.open,
     at: (rs.open ? rs.closesAt : rs.opensAt).toISOString(),
   };
+  // só leitura, para desenhar a cena: expedição em andamento e colegas do grupo que estão neste mesmo mapa
+  const expAt = c.activity?.exp?.endsAt ?? null;
+  let mates: string[] = [];
+  if (c.currentMapId) {
+    const [mine] = await db.select({ pid: partyMembers.partyId }).from(partyMembers).where(eq(partyMembers.characterId, c.id));
+    if (mine) {
+      const rows = await db
+        .select({ av: characters.avatarId })
+        .from(partyMembers)
+        .innerJoin(characters, eq(characters.id, partyMembers.characterId))
+        .where(and(eq(partyMembers.partyId, mine.pid), eq(characters.currentMapId, c.currentMapId), ne(characters.id, c.id)))
+        .limit(3);
+      mates = rows.map((r) => r.av);
+    }
+  }
   const rail = "flex shrink-0 flex-col gap-2 lg:w-[clamp(170px,16vw,260px)] lg:overflow-y-auto";
   return (
     <main className="mx-auto flex max-w-[1900px] flex-col gap-2 p-2 lg:h-dvh lg:overflow-hidden lg:p-3">
@@ -91,7 +109,7 @@ export default async function Play() {
 
         {/* centro: a cidade (encaixa na altura da tela, nunca rola) */}
         <div className="town-box order-1 min-w-0 lg:order-2 lg:flex-1">
-          <TownMap slug={slug} mapName={mapName} realm={realm} />
+          <TownMap slug={slug} mapName={mapName} realm={realm} expAt={expAt} meAv={c.avatarId} mates={mates} />
         </div>
 
         {/* direita: luta, Reino e informações do mapa */}
