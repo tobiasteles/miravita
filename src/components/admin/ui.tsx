@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { buttonClass } from "@/components/ui/Button";
 // peças de formulário do painel /admin
 export const inp = "w-full rounded border border-violet-700 bg-[#0c0a1f] px-2 py-1.5 text-sm outline-none focus:border-cyan-400";
-export const btn = "rounded bg-violet-600 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-cyan-500";
+export const btn = buttonClass("primary", "sm");
 export const btnDanger = "rounded border border-rose-700 px-2 py-1 text-xs text-rose-300 hover:bg-rose-950";
 export const Card = ({ title, children }: { title?: string; children: ReactNode }) => (
   <section className="space-y-2 rounded-xl border border-violet-800 bg-[#171433] p-4">

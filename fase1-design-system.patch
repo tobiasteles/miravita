@@ -1,0 +1,450 @@
+diff --git a/src/app/dev/styleguide/Demo.tsx b/src/app/dev/styleguide/Demo.tsx
+new file mode 100644
+index 0000000..404b3ac
+--- /dev/null
++++ b/src/app/dev/styleguide/Demo.tsx
+@@ -0,0 +1,53 @@
++"use client";
++import { useState } from "react";
++import { Badge, Button, Card, EaBar, HpBar, Modal, Tooltip, useToast } from "@/components/ui";
++
++const swatches = ["bg-bg", "bg-surface", "bg-surface-2", "bg-line", "bg-arcane", "bg-aether", "bg-ember", "bg-blood", "bg-vital"];
++
++export default function Demo() {
++  const [open, setOpen] = useState(false);
++  const [hp, setHp] = useState(80);
++  const toast = useToast();
++  return (
++    <main className="mx-auto max-w-3xl space-y-6 p-4">
++      <h1 className="font-display text-2xl font-extrabold">Styleguide</h1>
++      <Card className="space-y-2">
++        <h2 className="font-bold text-aether">Cores</h2>
++        <div className="flex flex-wrap gap-2">
++          {swatches.map((c) => <div key={c} className={`${c} h-10 w-16 rounded-chip ring-1 ring-line`} title={c} />)}
++        </div>
++      </Card>
++      <Card className="space-y-3">
++        <h2 className="font-bold text-aether">Botões</h2>
++        <div className="flex flex-wrap gap-2">
++          <Button>Primário</Button><Button variant="ghost">Fantasma</Button>
++          <Button variant="danger">Perigo</Button><Button variant="gold">Ouro</Button>
++          <Button size="sm">Pequeno</Button><Button disabled>Desativado</Button>
++        </div>
++      </Card>
++      <Card tone="gold" className="space-y-3">
++        <h2 className="font-bold text-ember">Barras e selos</h2>
++        <HpBar value={hp} max={100} showValue />
++        <EaBar value={55} max={100} showValue />
++        <div className="flex flex-wrap gap-2">
++          <Button size="sm" variant="danger" onClick={() => setHp((h) => Math.max(0, h - 25))}>Tomar dano</Button>
++          <Button size="sm" variant="ghost" onClick={() => setHp(100)}>Curar</Button>
++        </div>
++        <div className="flex flex-wrap gap-2">
++          <Badge>Comum</Badge><Badge tone="arcane">Raro</Badge><Badge tone="aether">Épico</Badge>
++          <Badge tone="ember">Lendário</Badge><Badge tone="blood">Perigo</Badge><Badge tone="vital">Ativo</Badge>
++        </div>
++      </Card>
++      <Card className="flex flex-wrap items-center gap-3">
++        <Tooltip text="Dica acessível por hover e teclado"><Button variant="ghost">Passe o mouse</Button></Tooltip>
++        <Button onClick={() => setOpen(true)}>Abrir modal</Button>
++        <Button variant="ghost" onClick={() => toast("Item guardado na mochila.", "success")}>Toast ok</Button>
++        <Button variant="ghost" onClick={() => toast("Sem energia para essa técnica.", "error")}>Toast erro</Button>
++      </Card>
++      <Modal open={open} onClose={() => setOpen(false)} title="Exemplo de modal">
++        <p className="text-sm text-ink-dim">Esc, clique fora ou o botão fecham. O foco fica dentro do modal.</p>
++        <Button onClick={() => setOpen(false)}>Entendi</Button>
++      </Modal>
++    </main>
++  );
++}
+diff --git a/src/app/dev/styleguide/page.tsx b/src/app/dev/styleguide/page.tsx
+new file mode 100644
+index 0000000..d8962d1
+--- /dev/null
++++ b/src/app/dev/styleguide/page.tsx
+@@ -0,0 +1,10 @@
++import { notFound } from "next/navigation";
++import Demo from "./Demo";
++
++export const metadata = { title: "Styleguide (dev)" };
++
++// só existe em desenvolvimento; em produção responde 404
++export default function Page() {
++  if (process.env.NODE_ENV === "production") notFound();
++  return <Demo />;
++}
+diff --git a/src/app/globals.css b/src/app/globals.css
+index 5de0d59..20c3d3b 100644
+--- a/src/app/globals.css
++++ b/src/app/globals.css
+@@ -1,4 +1,45 @@
+ @import "tailwindcss";
++
++/* ===== Design tokens (Fase 1) — "static" gera todas as variáveis mesmo sem uso direto ===== */
++@theme static {
++  --color-bg: #0c0a1f;
++  --color-surface: #171433;
++  --color-surface-2: #1f1b45;
++  --color-line: #3b2f7a;
++  --color-ink: #e8e6ff;
++  --color-ink-dim: #a9a4d6;
++  --color-arcane: #8b5cf6;
++  --color-arcane-btn: #7c3aed;
++  --color-arcane-soft: #c4b5fd;
++  --color-aether: #22d3ee;
++  --color-ember: #fbbf24;
++  --color-blood: #f43f5e;
++  --color-vital: #34d399;
++
++  --font-display: var(--font-brand), Georgia, serif;
++
++  --radius-chip: 0.375rem;
++  --radius-panel: 0.75rem;
++  --radius-modal: 1rem;
++
++  --shadow-panel: 0 0 0 1px #8b5cf622, 0 8px 30px #0006;
++  --shadow-glow-arcane: 0 0 0 1px #8b5cf655, 0 0 32px #8b5cf655;
++  --shadow-glow-ember: 0 0 24px #fbbf2433;
++
++  --duration-fast: 120ms;
++  --duration-base: 200ms;
++  --duration-slow: 500ms;
++  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
++}
++
++/* entradas dos primitivos (Modal e Toast); desligadas com movimento reduzido */
++@keyframes ui-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
++@keyframes ui-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
++.anim-pop { animation: ui-pop var(--duration-base) var(--ease-soft); }
++.anim-toast { animation: ui-drop var(--duration-base) var(--ease-soft); }
++@media (prefers-reduced-motion: reduce) {
++  .anim-pop, .anim-toast { animation: none; }
++}
+ body {
+   background: #0c0a1f;
+   color: #e8e6ff;
+diff --git a/src/app/layout.tsx b/src/app/layout.tsx
+index 255d8b2..8943c34 100644
+--- a/src/app/layout.tsx
++++ b/src/app/layout.tsx
+@@ -1,6 +1,6 @@
+-import { Cinzel } from "next/font/google"; import MusicPlayer from "@/components/game/MusicPlayer"; import "./globals.css";
++import { Cinzel } from "next/font/google"; import MusicPlayer from "@/components/game/MusicPlayer"; import { ToastProvider } from "@/components/ui/Toast"; import "./globals.css";
+ const brand = Cinzel({ subsets: ["latin"], weight: ["600", "800"], variable: "--font-brand" });
+ export const metadata = { metadataBase: new URL(process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "http://localhost:3000"), title: "Miravita — Desperte o seu poder", description: "MMORPG de navegador: caçadores, portais, calabouços e a sua própria técnica suprema.", openGraph: { title: "Miravita", description: "Desperte o seu poder." } };
+ export default function Root({ children }: { children: React.ReactNode }) {
+-  return <html lang="pt-BR" className={brand.variable}><body className="min-h-screen pb-6">{children}<MusicPlayer /></body></html>;
++  return <html lang="pt-BR" className={brand.variable}><body className="min-h-screen pb-6"><ToastProvider>{children}</ToastProvider><MusicPlayer /></body></html>;
+ }
+diff --git a/src/components/admin/ui.tsx b/src/components/admin/ui.tsx
+index d7dd99d..12c2479 100644
+--- a/src/components/admin/ui.tsx
++++ b/src/components/admin/ui.tsx
+@@ -1,7 +1,8 @@
+ import type { ReactNode } from "react";
++import { buttonClass } from "@/components/ui/Button";
+ // peças de formulário do painel /admin
+ export const inp = "w-full rounded border border-violet-700 bg-[#0c0a1f] px-2 py-1.5 text-sm outline-none focus:border-cyan-400";
+-export const btn = "rounded bg-violet-600 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-cyan-500";
++export const btn = buttonClass("primary", "sm");
+ export const btnDanger = "rounded border border-rose-700 px-2 py-1 text-xs text-rose-300 hover:bg-rose-950";
+ export const Card = ({ title, children }: { title?: string; children: ReactNode }) => (
+   <section className="space-y-2 rounded-xl border border-violet-800 bg-[#171433] p-4">
+diff --git a/src/components/game/EscMenu.tsx b/src/components/game/EscMenu.tsx
+index 7e496f4..3bad8c4 100644
+--- a/src/components/game/EscMenu.tsx
++++ b/src/components/game/EscMenu.tsx
+@@ -1,4 +1,5 @@
+ "use client";
++import { buttonClass } from "@/components/ui/Button";
+ import { useEffect, useState } from "react";
+ import { useRouter } from "next/navigation";
+ import { logout } from "@/actions/auth";
+@@ -29,7 +30,7 @@ export default function EscMenu() {
+     window.addEventListener("keydown", h);
+     return () => window.removeEventListener("keydown", h);
+   }, []);
+-  const btn = "block w-full rounded bg-violet-600 p-2 font-semibold";
++  const btn = `${buttonClass("primary")} w-full`;
+   return (
+     <>
+       {/* botão do menu: só os três pontinhos (a tecla Esc continua abrindo e fechando o menu) */}
+diff --git a/src/components/game/Parties.tsx b/src/components/game/Parties.tsx
+index 92dd688..0030305 100644
+--- a/src/components/game/Parties.tsx
++++ b/src/components/game/Parties.tsx
+@@ -1,4 +1,5 @@
+ import { eq, inArray } from "drizzle-orm"; import { db } from "@/db"; import { parties, partyMembers, characters } from "@/db/schema"; import { createParty, joinParty, leaveParty } from "@/actions/party";
++import { buttonClass } from "@/components/ui/Button";
+ export default async function Parties({ gid, me }: { gid: string; me: string }) {
+   const ps = await db.select().from(parties).where(eq(parties.guildId, gid));
+   const mem = ps.length ? await db.select({ pid: partyMembers.partyId, id: characters.id, n: characters.name, lv: characters.level, hp: characters.hp }).from(partyMembers).innerJoin(characters, eq(partyMembers.characterId, characters.id)).where(inArray(partyMembers.partyId, ps.map((p) => p.id))) : [];
+@@ -7,5 +8,5 @@ export default async function Parties({ gid, me }: { gid: string; me: string })
+     {ps.map((p) => { const ms = mem.filter((m) => m.pid === p.id); return <div key={p.id} className="mt-2 border-t border-violet-900 pt-2"><div className="flex items-center gap-2"><b className="flex-1">{p.name} <span className="text-xs text-violet-400">{ms.length}/4</span></b>
+       {mine === p.id ? <form action={leaveParty}><button className="text-sm text-rose-400">Sair</button></form> : !mine && ms.length < 4 && <form action={joinParty}><input type="hidden" name="id" value={p.id} /><button className="rounded border border-violet-800 px-2 text-sm">Entrar</button></form>}</div>
+       {ms.map((m) => <div key={m.id} className="text-sm text-violet-200">{m.id === p.leaderId ? "👑 " : "• "}{m.n} <span className="text-violet-400">Nv. {m.lv} · HP {m.hp}</span></div>)}</div>; })}
+-    {!mine && <form action={createParty} className="mt-3 flex gap-2"><input name="name" placeholder="Nome do grupo" maxLength={20} className="flex-1 rounded bg-[#0c0a1f] p-2" /><button className="rounded bg-violet-600 px-3 py-1 font-semibold">Criar</button></form>}</section>;
++    {!mine && <form action={createParty} className="mt-3 flex gap-2"><input name="name" placeholder="Nome do grupo" maxLength={20} className="flex-1 rounded bg-[#0c0a1f] p-2" /><button className={buttonClass("primary", "sm")}>Criar</button></form>}</section>;
+ }
+diff --git a/src/components/ui/Badge.tsx b/src/components/ui/Badge.tsx
+new file mode 100644
+index 0000000..d5084fc
+--- /dev/null
++++ b/src/components/ui/Badge.tsx
+@@ -0,0 +1,18 @@
++import type { HTMLAttributes } from "react";
++import { cx } from "./cx";
++
++const tones = {
++  plain: "border-line text-ink-dim",
++  arcane: "border-arcane/50 bg-arcane/15 text-arcane-soft",
++  aether: "border-aether/50 bg-aether/15 text-aether",
++  ember: "border-ember/50 bg-ember/15 text-ember",
++  blood: "border-blood/50 bg-blood/15 text-blood",
++  vital: "border-vital/50 bg-vital/15 text-vital",
++} as const;
++export type BadgeTone = keyof typeof tones;
++
++export function Badge({ tone = "plain", className, ...rest }: HTMLAttributes<HTMLSpanElement> & { tone?: BadgeTone }) {
++  return (
++    <span className={cx("inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold", tones[tone], className)} {...rest} />
++  );
++}
+diff --git a/src/components/ui/Bar.tsx b/src/components/ui/Bar.tsx
+new file mode 100644
+index 0000000..7ddab58
+--- /dev/null
++++ b/src/components/ui/Bar.tsx
+@@ -0,0 +1,43 @@
++import { cx } from "./cx";
++
++type Tone = "vital" | "aether" | "ember" | "blood";
++const fill: Record<Tone, string> = { vital: "bg-vital", aether: "bg-aether", ember: "bg-ember", blood: "bg-blood" };
++const clamp = (n: number) => (Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0);
++
++// Barra genérica. Só exibe valores que o servidor já mandou; não calcula regra nenhuma.
++// A camada "perda" fica mais clara e encolhe devagar, mostrando quanto acabou de cair.
++export function Bar({ value, max, tone = "vital", label, showValue = false, className }: {
++  value: number; max: number; tone?: Tone; label: string; showValue?: boolean; className?: string;
++}) {
++  const pct = max > 0 ? clamp((value / max) * 100) : 0;
++  return (
++    <div className={cx("flex items-center gap-2 text-xs", className)}>
++      <span className="w-6 shrink-0 font-semibold text-ink-dim" aria-hidden>{label}</span>
++      <div
++        role="progressbar"
++        aria-label={label}
++        aria-valuemin={0}
++        aria-valuemax={max}
++        aria-valuenow={Math.max(0, value)}
++        className="relative h-2.5 flex-1 overflow-hidden rounded-full bg-bg ring-1 ring-line"
++      >
++        <div
++          className="absolute inset-y-0 left-0 bg-white/60 transition-[width] delay-300 duration-1000 ease-out motion-reduce:transition-none"
++          style={{ width: `${pct}%` }}
++        />
++        <div
++          className={cx("absolute inset-y-0 left-0 transition-[width] duration-500 ease-out motion-reduce:transition-none", fill[tone])}
++          style={{ width: `${pct}%` }}
++        />
++      </div>
++      {showValue && <span className="w-16 shrink-0 text-right tabular-nums text-ink-dim">{Math.max(0, value)}/{max}</span>}
++    </div>
++  );
++}
++
++// HP muda de cor conforme esvazia
++export function HpBar(p: { value: number; max: number; showValue?: boolean; className?: string }) {
++  const r = p.max > 0 ? p.value / p.max : 0;
++  return <Bar {...p} label="HP" tone={r > 0.5 ? "vital" : r > 0.25 ? "ember" : "blood"} />;
++}
++export const EaBar = (p: { value: number; max: number; showValue?: boolean; className?: string }) => <Bar {...p} label="EA" tone="aether" />;
+diff --git a/src/components/ui/Button.tsx b/src/components/ui/Button.tsx
+new file mode 100644
+index 0000000..06861cc
+--- /dev/null
++++ b/src/components/ui/Button.tsx
+@@ -0,0 +1,29 @@
++import type { ButtonHTMLAttributes } from "react";
++import { cx } from "./cx";
++
++export type ButtonVariant = "primary" | "ghost" | "danger" | "gold";
++export type ButtonSize = "sm" | "md";
++
++const base =
++  "inline-flex items-center justify-center gap-1.5 rounded-chip font-semibold " +
++  "transition-colors duration-(--duration-base) " +
++  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-aether " +
++  "disabled:cursor-not-allowed disabled:opacity-50";
++const variants: Record<ButtonVariant, string> = {
++  primary: "bg-arcane-btn text-ink hover:bg-aether hover:text-bg",
++  ghost: "border border-line text-ink hover:bg-line/40",
++  danger: "border border-blood/70 text-blood hover:bg-blood/15",
++  gold: "bg-ember text-bg hover:brightness-110",
++};
++const sizes: Record<ButtonSize, string> = {
++  sm: "min-h-9 px-3 py-1.5 text-sm",
++  md: "min-h-11 px-4 py-2",
++};
++
++// também serve para <Link> e <a>: className={buttonClass("ghost")}
++export const buttonClass = (v: ButtonVariant = "primary", s: ButtonSize = "md") => cx(base, variants[v], sizes[s]);
++
++type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant; size?: ButtonSize };
++export function Button({ variant, size, className, type = "button", ...rest }: Props) {
++  return <button type={type} className={cx(buttonClass(variant, size), className)} {...rest} />;
++}
+diff --git a/src/components/ui/Card.tsx b/src/components/ui/Card.tsx
+new file mode 100644
+index 0000000..66c0639
+--- /dev/null
++++ b/src/components/ui/Card.tsx
+@@ -0,0 +1,12 @@
++import type { HTMLAttributes } from "react";
++import { cx } from "./cx";
++
++export const cardClass = (tone: "default" | "gold" = "default") =>
++  cx(
++    "rounded-panel border bg-surface p-4 shadow-panel backdrop-blur-sm",
++    tone === "gold" ? "border-ember/70 shadow-glow-ember" : "border-line",
++  );
++
++export function Card({ tone, className, ...rest }: HTMLAttributes<HTMLDivElement> & { tone?: "default" | "gold" }) {
++  return <div className={cx(cardClass(tone), className)} {...rest} />;
++}
+diff --git a/src/components/ui/Modal.tsx b/src/components/ui/Modal.tsx
+new file mode 100644
+index 0000000..950aa3c
+--- /dev/null
++++ b/src/components/ui/Modal.tsx
+@@ -0,0 +1,27 @@
++"use client";
++import { useEffect, useRef, type ReactNode } from "react";
++
++// Usa o <dialog> nativo: Esc fecha, o foco fica preso e o fundo fica inerte, sem biblioteca.
++export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
++  const ref = useRef<HTMLDialogElement>(null);
++  useEffect(() => {
++    const d = ref.current;
++    if (!d) return;
++    if (open && !d.open) d.showModal();
++    if (!open && d.open) d.close();
++  }, [open]);
++  return (
++    <dialog
++      ref={ref}
++      aria-label={title}
++      onClose={onClose}
++      onClick={(e) => e.target === ref.current && onClose()}
++      className="anim-pop m-auto w-[min(92vw,28rem)] rounded-modal border border-line bg-surface p-0 text-ink shadow-glow-arcane backdrop:bg-black/70 backdrop:backdrop-blur-sm"
++    >
++      <div className="space-y-3 p-5">
++        <h2 className="font-display text-lg font-extrabold text-aether">{title}</h2>
++        {children}
++      </div>
++    </dialog>
++  );
++}
+diff --git a/src/components/ui/Toast.tsx b/src/components/ui/Toast.tsx
+new file mode 100644
+index 0000000..6058c8b
+--- /dev/null
++++ b/src/components/ui/Toast.tsx
+@@ -0,0 +1,52 @@
++"use client";
++import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
++import { cx } from "./cx";
++
++type Tone = "info" | "success" | "warn" | "error";
++type Item = { id: number; tone: Tone; text: string };
++type Push = (text: string, tone?: Tone) => void;
++
++const tones: Record<Tone, string> = {
++  info: "border-arcane/60",
++  success: "border-vital/60",
++  warn: "border-ember/60",
++  error: "border-blood/70",
++};
++const Ctx = createContext<Push>(() => {});
++export const useToast = () => useContext(Ctx);
++
++export function ToastProvider({ children }: { children: ReactNode }) {
++  const [items, setItems] = useState<Item[]>([]);
++  const seq = useRef(0);
++  const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
++
++  const dismiss = useCallback((id: number) => {
++    const t = timers.current.get(id);
++    if (t) clearTimeout(t);
++    timers.current.delete(id);
++    setItems((l) => l.filter((x) => x.id !== id));
++  }, []);
++  const push = useCallback<Push>((text, tone = "info") => {
++    const id = ++seq.current;
++    setItems((l) => [...l.slice(-3), { id, tone, text }]);
++    timers.current.set(id, setTimeout(() => dismiss(id), tone === "error" ? 6000 : 3500));
++  }, [dismiss]);
++  useEffect(() => {
++    const m = timers.current;
++    return () => { m.forEach((t) => clearTimeout(t)); m.clear(); };
++  }, []);
++
++  return (
++    <Ctx.Provider value={push}>
++      {children}
++      <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-3 z-[60] flex flex-col items-center gap-2 px-3">
++        {items.map((t) => (
++          <div key={t.id} role="status" className={cx("anim-toast pointer-events-auto flex max-w-md items-start gap-3 rounded-panel border bg-surface-2 px-3 py-2 text-sm shadow-panel", tones[t.tone])}>
++            <span className="flex-1">{t.text}</span>
++            <button type="button" onClick={() => dismiss(t.id)} aria-label="Fechar aviso" className="text-ink-dim hover:text-ink focus-visible:outline-2 focus-visible:outline-aether">✕</button>
++          </div>
++        ))}
++      </div>
++    </Ctx.Provider>
++  );
++}
+diff --git a/src/components/ui/Tooltip.tsx b/src/components/ui/Tooltip.tsx
+new file mode 100644
+index 0000000..47d90fe
+--- /dev/null
++++ b/src/components/ui/Tooltip.tsx
+@@ -0,0 +1,18 @@
++import { useId, type ReactNode } from "react";
++
++// Tooltip só com CSS: aparece no hover e no foco do teclado. Em tela de toque, aparece ao focar.
++export function Tooltip({ text, children }: { text: string; children: ReactNode }) {
++  const id = useId();
++  return (
++    <span className="group relative inline-flex" aria-describedby={id}>
++      {children}
++      <span
++        id={id}
++        role="tooltip"
++        className="pointer-events-none absolute bottom-full left-1/2 z-40 mb-1.5 w-max max-w-56 -translate-x-1/2 rounded-chip border border-line bg-surface-2 px-2 py-1 text-xs text-ink opacity-0 shadow-panel transition-opacity duration-(--duration-fast) group-focus-within:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
++      >
++        {text}
++      </span>
++    </span>
++  );
++}
+diff --git a/src/components/ui/cx.ts b/src/components/ui/cx.ts
+new file mode 100644
+index 0000000..0c05468
+--- /dev/null
++++ b/src/components/ui/cx.ts
+@@ -0,0 +1,2 @@
++// junta classes ignorando valores falsos
++export const cx = (...a: Array<string | false | null | undefined>) => a.filter(Boolean).join(" ");
+diff --git a/src/components/ui/index.ts b/src/components/ui/index.ts
+new file mode 100644
+index 0000000..5965e17
+--- /dev/null
++++ b/src/components/ui/index.ts
+@@ -0,0 +1,7 @@
++export { Button, buttonClass } from "./Button";
++export { Card, cardClass } from "./Card";
++export { Badge } from "./Badge";
++export { Bar, HpBar, EaBar } from "./Bar";
++export { Tooltip } from "./Tooltip";
++export { Modal } from "./Modal";
++export { ToastProvider, useToast } from "./Toast";

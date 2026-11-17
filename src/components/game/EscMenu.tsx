@@ -1,4 +1,5 @@
 "use client";
+import { buttonClass } from "@/components/ui/Button";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/actions/auth";
@@ -29,7 +30,7 @@ export default function EscMenu() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, []);
-  const btn = "block w-full rounded bg-violet-600 p-2 font-semibold";
+  const btn = `${buttonClass("primary")} w-full`;
   return (
     <>
       {/* botão do menu: só os três pontinhos (a tecla Esc continua abrindo e fechando o menu) */}

@@ -1,4 +1,45 @@
 @import "tailwindcss";
+
+/* ===== Design tokens (Fase 1) — "static" gera todas as variáveis mesmo sem uso direto ===== */
+@theme static {
+  --color-bg: #0c0a1f;
+  --color-surface: #171433;
+  --color-surface-2: #1f1b45;
+  --color-line: #3b2f7a;
+  --color-ink: #e8e6ff;
+  --color-ink-dim: #a9a4d6;
+  --color-arcane: #8b5cf6;
+  --color-arcane-btn: #7c3aed;
+  --color-arcane-soft: #c4b5fd;
+  --color-aether: #22d3ee;
+  --color-ember: #fbbf24;
+  --color-blood: #f43f5e;
+  --color-vital: #34d399;
+
+  --font-display: var(--font-brand), Georgia, serif;
+
+  --radius-chip: 0.375rem;
+  --radius-panel: 0.75rem;
+  --radius-modal: 1rem;
+
+  --shadow-panel: 0 0 0 1px #8b5cf622, 0 8px 30px #0006;
+  --shadow-glow-arcane: 0 0 0 1px #8b5cf655, 0 0 32px #8b5cf655;
+  --shadow-glow-ember: 0 0 24px #fbbf2433;
+
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 500ms;
+  --ease-soft: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* entradas dos primitivos (Modal e Toast); desligadas com movimento reduzido */
+@keyframes ui-pop { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes ui-drop { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+.anim-pop { animation: ui-pop var(--duration-base) var(--ease-soft); }
+.anim-toast { animation: ui-drop var(--duration-base) var(--ease-soft); }
+@media (prefers-reduced-motion: reduce) {
+  .anim-pop, .anim-toast { animation: none; }
+}
 body {
   background: #0c0a1f;
   color: #e8e6ff;
