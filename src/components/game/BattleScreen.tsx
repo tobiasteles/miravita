@@ -105,6 +105,14 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
   const mode = useStageMode(), bus = useStageBus(), toast = useToast();
   const [slow, setSlow] = useState(false), [ready3d, setReady3d] = useState(false);
   const is3d = mode === "3d" && !slow, scene3d = is3d && ready3d;
+  // aviso de nível: destaque temporário (some em 4 s ou ao tocar); não faz parte do registro da luta
+  const [lvOff, setLvOff] = useState<number | null>(null);
+  const showLv = !!b.lv && lvOff !== (b.fxSeq ?? 0);
+  useEffect(() => {
+    if (!b.lv) return;
+    const t = setTimeout(() => setLvOff(b.fxSeq ?? 0), 4000);
+    return () => clearTimeout(t);
+  }, [b.lv, b.fxSeq]);
   useStageEvents(bus, b.fx, b.fxSeq ?? 0); // anima o que o servidor gravou no último turno
   const [menu, setMenu] = useState<"main" | "sk" | "tm" | "it">("main");
   const [sk, setSk] = useState(0);
@@ -390,13 +398,16 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
               <Emo>{l}</Emo>
             </div>
           ))}
-          {b.res.some((l) => l.includes("⬆️")) && (
-            <div
-              className="relative my-1 grid h-10 place-items-center overflow-hidden rounded bg-violet-700/60 bg-cover bg-center"
+          {showLv && (
+            <button
+              type="button"
+              onClick={() => setLvOff(b.fxSeq ?? 0)}
+              aria-label={`Nível ${b.lv}! Toque para fechar`}
+              className="relative my-1 grid h-10 w-full place-items-center overflow-hidden rounded bg-violet-700/60 bg-cover bg-center"
               style={{ backgroundImage: bg("/brand/levelup-banner") }}
             >
-              <span className="font-bold tracking-[.4em] text-amber-200 drop-shadow">NÍVEL UP!</span>
-            </div>
+              <span className="font-bold tracking-[.4em] text-amber-200 drop-shadow">NÍVEL UP! · Nv. {b.lv}</span>
+            </button>
           )}
           {b.res.map((l, i) => (
             <div key={"r" + i} className="text-amber-300">

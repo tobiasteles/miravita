@@ -69,7 +69,7 @@ export function Shadow({ x, y, z, w, opacity = 0.55 }: { x: number; y: number; z
 // personagem/monstro: arte 2D existente num plano, com os pés ancorados em (x%, y%)
 // end: pose em que o ator já nasce quando a luta abriu terminada ("gone" = sumiu, "down" = caído)
 const END = { gone: { op: 0, y: 0, rot: 0 }, down: { op: 0.35, y: -0.35, rot: 0.5 } } as const;
-export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, bob = true, end }: { id: string; urls: readonly string[]; x: number; y: number; z?: number; h: number; flip?: boolean; shadow?: boolean; bob?: boolean; end?: "gone" | "down" }) {
+export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, bob = true, end, shadowW = 0.8, shadowO = 0.55, bobAmp = 0.012 }: { id: string; urls: readonly string[]; x: number; y: number; z?: number; h: number; flip?: boolean; shadow?: boolean; bob?: boolean; end?: "gone" | "down"; shadowW?: number; shadowO?: number; bobAmp?: number }) {
   const st = useStage();
   const tex = useTex(urls);
   const g = useRef<Group>(null), breath = useRef<Group>(null), mat = useRef<MeshBasicMaterial>(null);
@@ -88,12 +88,14 @@ export function Actor({ id, urls, x, y, z = 0, h, flip = false, shadow = true, b
   }, [st, id, X, Y, z, hh, ww, end]);
 
   useFrame(({ clock }) => { // respiração leve (só roda enquanto a cena anima)
-    if (bob && breath.current) breath.current.scale.y = 1 + 0.012 * Math.sin(clock.elapsedTime * 2 + phase);
+    if (!bob || !breath.current) return;
+    breath.current.scale.y = 1 + bobAmp * Math.sin(clock.elapsedTime * 2 + phase);
+    breath.current.rotation.z = bobAmp * 0.6 * Math.sin(clock.elapsedTime * 0.9 + phase); // balanço leve do peso, com os pés fixos
   });
 
   return (
     <>
-      {shadow && <Shadow x={X} y={Y} z={z} w={ww * 0.8} />}
+      {shadow && <Shadow x={X} y={Y} z={z} w={ww * shadowW} opacity={shadowO} />}
       <group ref={g} position={[X, Y, z]}>
         <group ref={breath}>
           <mesh position={[0, hh / 2, 0]} scale={[flip ? -1 : 1, 1, 1]} renderOrder={5} visible={!!tex}>

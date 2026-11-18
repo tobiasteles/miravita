@@ -51,3 +51,10 @@ export const WORLD_PINS: Record<string, { x: number; y: number }> = {
 export const expPhase = (endsAt: number | null | undefined, now: number): "idle" | "running" | "ready" => (!endsAt ? "idle" : now >= endsAt ? "ready" : "running");
 // noite visual pelo relógio do navegador (19h–6h)
 export const isNight = (hour: number) => hour >= 19 || hour < 6;
+
+// ── composição do personagem na cidade (3D) ──
+// altura do personagem em px: ~20% da cena, entre 70 e 170 px e nunca mais de 35% (proporcional aos prédios, com clamp responsivo)
+export const heroPx = (sceneH: number) => Math.min(Math.max(sceneH * 0.2, 70), 170, sceneH * 0.35);
+// pés do personagem (em % da cena): praça, lado esquerdo/inferior; no celular mais à esquerda, para sobrar espaço
+export const heroSpot = (sceneW: number) => (sceneW < 520 ? { x: 41, y: 72 } : { x: 44, y: 69 });
+export const MATE_DX = [7, -6, 13] as const; // colegas ao redor (em % da largura), até 3

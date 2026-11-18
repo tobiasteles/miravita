@@ -26,3 +26,17 @@ test("pontos clicáveis: ids únicos, dentro do quadro e com o portal do Reino",
   assert.ok(SPOTS.find((s) => s.id === "reino" && s.kind === "realm"));
   assert.ok(SPOTS.find((s) => s.id === "atividades"));
 });
+
+import { heroPx, heroSpot, MATE_DX } from "../src/lib/game/town";
+test("personagem na cidade: altura proporcional com clamp e nunca acima de 35% da cena", () => {
+  assert.equal(heroPx(800), 160); // desktop: 20%
+  assert.equal(heroPx(560), 112); // notebook
+  assert.equal(heroPx(224), 70); // celular: mínimo legível (31%)
+  assert.equal(heroPx(3000), 170); // telão: teto
+  for (const h of [120, 224, 400, 560, 800, 1200, 3000]) assert.ok(heroPx(h) <= h * 0.35 + 1e-9, `h=${h}`);
+});
+test("personagem na cidade: posição à esquerda da praça e ajuste para celular", () => {
+  const d = heroSpot(1200), m = heroSpot(360);
+  assert.ok(d.x < 50 && m.x < d.x && d.y > 55 && d.y < 80);
+  assert.equal(MATE_DX.length, 3);
+});

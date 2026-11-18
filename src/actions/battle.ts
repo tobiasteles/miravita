@@ -9,7 +9,7 @@ import { battles, characters, battleLogs, questProgress, partyMembers, inventory
 import { activeEvents, evMult } from "@/lib/game/live";
 import { withChar } from "@/lib/lock";
 import { loadPlayer } from "@/lib/game/player";
-import { step, type Act, type BState } from "@/lib/game/battle";
+import { advanceWave, step, type Act, type BState } from "@/lib/game/battle";
 import { WORLD } from "@/lib/game/world";
 import { REALMS } from "@/lib/game/realms";
 import { realmStatus } from "@/lib/game/realm-schedule";
@@ -94,12 +94,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
     let lvl = P.c.level, xp = Number(P.c.xp), lvUp = 0;
     if (act.a === "next") {
       if (b.over === "wave") {
-        b.e = b.q.shift()!;
-        b.wave++;
-        b.over = null;
-        b.t = 0;
-        b.charge = 0; b.et = 0; b.eDef = 0; b.skip = false; b.dot = null; b.pStun = false;
-        b.log = [b.endless ? `⚔ ${b.e.n} (Nv. ${b.e.L}) apareceu!` : `🏁 Etapa ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
+        advanceWave(b); // zera log, recompensas e aviso de nível do monstro anterior
         if (b.endless) await infuse(cid, P.k.key, P.kit.infuse, b, P.q.hp);
       }
     } else {
@@ -184,7 +179,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
             b.res.push(`🏆 +${n}× ${elName(z)}`);
           }
         }
-        if (lvUp) b.res.push(`⬆️ Nível ${lvl}!`);
+        if (lvUp) b.lv = lvl; // aviso temporário na tela, não fica no registro
         if (b.endless && b.run) {
           // grind infinito: soma na corrida, sobe a intensidade e já prepara o próximo monstro (a cada 10º sub-chefe, a cada 25º chefe)
           b.run.kills++; b.run.xp += gain; b.run.gold += g;

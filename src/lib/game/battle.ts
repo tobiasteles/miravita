@@ -38,6 +38,7 @@ export type BState = {
   log: string[];
   over: null | "wave" | "win" | "lose" | "flee";
   res: string[];
+  lv?: number; // nível alcançado ao derrotar o monstro: vira um aviso temporário na tela (não entra mais em res)
   fx?: StageEvent[]; // eventos de cena do último turno (só visual)
   fxSeq?: number; // sobe a cada ação: o cliente anima os fx quando muda
   t?: number;
@@ -327,6 +328,18 @@ const F = (b: BState, e: StageEvent) => {
 // cor do brilho do jogador: categoria da Infusão (Elemental) ou a cor da classe
 const elOf = (b: BState, cls: string) => b.rx?.cat ?? CLASS_DEFS[cls]?.color;
 // estados antigos (salvos antes da atualização) ganham os campos novos
+// próximo monstro da sequência: o painel de mensagens começa limpo (recompensas e aviso de nível do monstro anterior saem)
+export function advanceWave(b: BState) {
+  b.e = b.q.shift()!;
+  b.wave++;
+  b.over = null;
+  b.t = 0;
+  b.charge = 0; b.et = 0; b.eDef = 0; b.skip = false; b.dot = null; b.pStun = false;
+  b.res = [];
+  b.lv = undefined;
+  b.fx = [];
+  b.log = [b.endless ? `⚔ ${b.e.n} (Nv. ${b.e.L}) apareceu!` : `🏁 Etapa ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
+}
 export function norm(b: BState, q: Stats) {
   b.pa ??= PA_MAX; b.used ??= {}; b.aegis ??= 0; b.aegisT ??= 0; b.eDef ??= 0; b.sifT ??= 0; b.charge ??= 0; b.et ??= 0;
   b.buf ??= 0; b.cu ??= 0; b.ev ??= 0; b.burn ??= 0; b.gveil ??= 0; b.gbuf ??= 0; b.gshield ??= 0; b.gshieldT ??= 0;
