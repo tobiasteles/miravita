@@ -4,6 +4,9 @@ import { bg } from "@/lib/img";
 import { latestNews } from "@/lib/game/live";
 import EventBanner from "@/components/game/EventBanner";
 import GameIcon from "@/components/game/GameIcon";
+import LangSwitch from "@/components/LangSwitch";
+import { className } from "@/i18n/content";
+import { getT } from "@/i18n/server";
 export const dynamic = "force-dynamic";
 
 // vaga-lumes: posição, atraso e duração diferentes para cada um
@@ -14,6 +17,7 @@ const FLIES = Array.from({ length: 14 }, (_, i) => ({
 }));
 
 export default async function Home() {
+  const { lang, t, f } = await getT();
   const news = await latestNews(5); // notícias criadas em /admin/noticias
   return (
     <>
@@ -58,18 +62,13 @@ export default async function Home() {
       <main className="relative mx-auto max-w-md px-4 py-8 text-center sm:px-6 sm:py-14">
         <LogoStack size={104} />
         <p className="mx-auto mt-6 max-w-xs text-violet-100 [text-shadow:0_2px_12px_#000]">
-          Seja um Desperto: reúna o poder despedaçado, enfrente portais e forje
-          a sua técnica suprema.
+          {t("home.tagline")}
         </p>
         <div className="my-8 flex justify-center gap-5">
-          {[
-            ["fisica", "Monitor Estelar"],
-            ["portugues", "Orador"],
-            ["historia", "Invocador"],
-          ].map(([k, l]) => (
+          {["fisica", "portugues", "historia"].map((k) => (
             <div key={k} className="flex flex-col items-center gap-1">
               <ClassSeal cls={k} size={72} />
-              <span className="text-xs text-violet-200">{l}</span>
+              <span className="text-xs text-violet-200">{className(lang, k)}</span>
             </div>
           ))}
         </div>
@@ -77,14 +76,14 @@ export default async function Home() {
           href="/characters"
           className="inline-block rounded-xl bg-gradient-to-r from-violet-600 to-cyan-500 px-8 py-3 text-lg font-bold shadow-[0_0_30px_#8b5cf688] transition hover:scale-105"
         >
-          Despertar
+          {t("home.cta")}
         </Link>
 
         <div className="mt-6 flex justify-center"><EventBanner /></div>
         {news.length > 0 && (
           <section className="mt-8 space-y-3 text-left">
             <h2 className="flex items-center justify-center gap-2 text-center text-sm font-bold uppercase tracking-widest text-cyan-300">
-              <GameIcon name="scroll" /> Notícias
+              <GameIcon name="scroll" /> {t("home.news")}
             </h2>
             {news.map((n) => (
               <article key={n.id} className="rounded-xl border border-violet-700/60 bg-[#12102c]/85 p-4 backdrop-blur">
@@ -93,13 +92,14 @@ export default async function Home() {
                     {n.pinned && <GameIcon name="pin" className="mr-1 text-amber-300" />}
                     {n.title}
                   </h3>
-                  <time className="shrink-0 text-xs text-violet-400">{new Date(n.createdAt).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })}</time>
+                  <time className="shrink-0 text-xs text-violet-400">{f.date(n.createdAt, { timeZone: "America/Sao_Paulo" })}</time>
                 </div>
                 <p className="mt-1 whitespace-pre-wrap text-sm text-violet-200">{n.body}</p>
               </article>
             ))}
           </section>
         )}
+        <LangSwitch className="mt-8 flex justify-center" />
       </main>
     </>
   );

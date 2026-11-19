@@ -12,13 +12,14 @@ import { MAGIC, stoneStack } from "@/lib/stone";
 import { ENCOUNTER_P, escortCost, type TravelMode } from "@/lib/game/travel";
 import { spawn, blankState, saveBattle, hasActiveBattle } from "@/lib/game/encounter";
 import { inventory } from "@/db/schema";
+import type { Key } from "@/i18n/pt-BR";
 
 async function uid() {
   const userId = await getUserId();
   if (!userId) redirect("/sign-in");
   return userId;
 }
-const bad = (m: string) =>
+const bad = (m: Key) =>
   redirect("/characters?error=" + encodeURIComponent(m));
 
 export async function createCharacter(fd: FormData) {
@@ -28,10 +29,10 @@ export async function createCharacter(fd: FormData) {
     av = String(fd.get("avatar"));
   const tr = fd.getAll("traits").map(String).slice(0, 2);
   if (!/^[\p{L}\p{N}_ -]{3,16}$/u.test(name))
-    return bad("Nome inválido (3–16 caracteres).");
-  if (!CLASS_KEYS.includes(cls)) return bad("Classe inválida.");
+    return bad("err.char.name");
+  if (!CLASS_KEYS.includes(cls)) return bad("err.char.class");
   if (!av.startsWith(`class_${cls}_`))
-    return bad("Avatar não pertence à classe.");
+    return bad("err.char.avatar");
   const [k] = await db
     .select()
     .from(classes)
@@ -40,14 +41,14 @@ export async function createCharacter(fd: FormData) {
     .select()
     .from(maps)
     .where(eq(maps.slug, "planicie-de-aurora"));
-  if (!k || !m) return bad("Rode o seed: npm run db:seed");
+  if (!k || !m) return bad("err.char.seed");
   // INSERT condicional: garante o limite de 6 em uma única instrução (atômico, sem transação)
   const r =
     await db.execute(sql`insert into characters (user_id,name,class_key,avatar_id,hp,mp,current_map_id)
     select ${userId},${name},${cls}::class_key,${av},${k.baseStats.hp},${k.baseStats.mp},${m.id}
     where (select count(*) from characters where user_id=${userId}) < 6 on conflict do nothing returning id`);
   const id = r.rows[0]?.id as string | undefined;
-  if (!id) return bad("Limite de 6 personagens ou nome já em uso.");
+  if (!id) return bad("err.char.limit");
   if (tr.length)
     await db
       .insert(characterTraits)
@@ -74,7 +75,7 @@ export async function selectCharacter(fd: FormData) {
     .select({ id: characters.id })
     .from(characters)
     .where(and(eq(characters.id, id), eq(characters.userId, userId)));
-  if (!c) return bad("Personagem não encontrado.");
+  if (!c) return bad("err.char.notFound");
   (await cookies()).set("mv_char", id, {
     httpOnly: true,
     sameSite: "lax",

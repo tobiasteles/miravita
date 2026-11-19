@@ -1,5 +1,6 @@
 "use client";
 import { buttonClass } from "@/components/ui/Button";
+import LangSwitch from "@/components/LangSwitch";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/actions/auth";
@@ -132,6 +133,7 @@ export default function EscMenu() {
                   />{" "}
                   Cena 3D na batalha e na cidade (vale ao recarregar a página)
                 </label>
+                <LangSwitch />
                 <button className={btn} onClick={() => setV("menu")}>
                   Voltar
                 </button>

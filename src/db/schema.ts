@@ -83,6 +83,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   displayName: text("display_name"),
   passwordHash: text("password_hash"), // login próprio (scrypt); null = conta antiga sem senha
+  language: text("language"), // "pt-BR" | "en"; null = ainda não escolheu
   settings: jsonb("settings")
     .$type<{
       sound: number;

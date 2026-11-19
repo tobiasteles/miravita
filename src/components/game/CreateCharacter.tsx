@@ -3,6 +3,8 @@ import { useState } from "react";
 import { createCharacter } from "@/actions/character";
 import { BLOCKS, CLASS_DEFS, CLASS_KEYS } from "@/lib/game/classes";
 import SafeImg from "@/components/game/SafeImg";
+import { useT } from "@/i18n/client";
+import { blockLabel, className, classDesc } from "@/i18n/content";
 
 type Trait = { id: string; name: string; description: string };
 
@@ -14,6 +16,7 @@ export default function CreateCharacter({
   traits: Trait[];
   error?: string;
 }) {
+  const { lang, t } = useT();
   const [open, setOpen] = useState(!!error); // se o servidor devolveu um erro, reabre a janela para mostrá-lo
   const [cls, setCls] = useState(CLASS_KEYS[0]);
   const [av, setAv] = useState(1);
@@ -35,7 +38,7 @@ export default function CreateCharacter({
       >
         <span className="text-center">
           <span className="block text-4xl leading-none">+</span>
-          <span className="mt-1 block">Criar personagem</span>
+          <span className="mt-1 block">{t("char.create")}</span>
         </span>
       </button>
       {open && (
@@ -48,23 +51,23 @@ export default function CreateCharacter({
             className="w-full max-w-lg space-y-3 rounded-xl border border-violet-600 bg-[#171433] p-5 shadow-[0_0_40px_#8b5cf655]"
           >
             <div className="flex items-center">
-              <h2 className="flex-1 text-lg font-bold">Novo personagem</h2>
+              <h2 className="flex-1 text-lg font-bold">{t("char.new")}</h2>
               <button
                 type="button"
-                aria-label="Fechar"
+                aria-label={t("common.close")}
                 onClick={() => setOpen(false)}
                 className="rounded px-2 text-violet-300 hover:text-white"
               >
                 ✕
               </button>
             </div>
-            {error && <p className="text-rose-400">{error}</p>}
+            {error && <p className="text-rose-400">{t(error)}</p>}
             <input
               name="name"
               required
               minLength={3}
               maxLength={16}
-              placeholder="Nome único"
+              placeholder={t("char.namePlaceholder")}
               className="w-full rounded bg-[#0c0a1f] p-2"
             />
             <select
@@ -77,27 +80,27 @@ export default function CreateCharacter({
               className="w-full rounded bg-[#0c0a1f] p-2"
             >
               {BLOCKS.map(([bl, label]) => (
-                <optgroup key={bl} label={label}>
+                <optgroup key={bl} label={blockLabel(lang, bl, label)}>
                   {CLASS_KEYS.filter((k) => CLASS_DEFS[k].block === bl).map(
                     (k) => (
                       <option key={k} value={k}>
-                        {CLASS_DEFS[k].name}
+                        {className(lang, k)}
                       </option>
                     ),
                   )}
                 </optgroup>
               ))}
             </select>
-            <p className="text-xs text-violet-300">{CLASS_DEFS[cls].desc}</p>
+            <p className="text-xs text-violet-300">{classDesc(lang, cls)}</p>
             <div>
-              <div className="mb-1 text-sm text-violet-300">Aparência</div>
+              <div className="mb-1 text-sm text-violet-300">{t("char.appearance")}</div>
               <div className="flex gap-3">
                 {[1, 2, 3].map((n) => (
                   <button
                     type="button"
                     key={n}
                     onClick={() => setAv(n)}
-                    aria-label={`Aparência ${n}`}
+                    aria-label={t("char.appearanceN", { n })}
                     aria-pressed={av === n}
                     className={`h-20 w-20 overflow-hidden rounded-xl border-2 bg-violet-950 transition ${av === n ? "border-cyan-400 shadow-[0_0_16px_#22d3ee88]" : "border-violet-800 opacity-70 hover:opacity-100"}`}
                   >
@@ -121,7 +124,7 @@ export default function CreateCharacter({
             </div>
             <fieldset className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
               <legend className="mb-1 text-violet-300">
-                Personalidade (até 2)
+                {t("char.traits")}
               </legend>
               {traits.map((t) => {
                 const on = tr.includes(t.id),
@@ -143,7 +146,7 @@ export default function CreateCharacter({
               })}
             </fieldset>
             <button className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-cyan-500 py-2 font-bold">
-              Criar personagem
+              {t("char.create")}
             </button>
           </form>
         </div>
