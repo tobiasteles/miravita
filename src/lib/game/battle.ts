@@ -4,6 +4,8 @@ import { buildStats, monBase, KIND_MUL, PA_MAX, PA_REGEN, defF, type CStats, typ
 export { SKILLS, SUMMONS };
 import { monsterXp } from "./xp";
 import type { StageEvent } from "./fx-events";
+import { tFor, type Key } from "../../i18n";
+import type { Vars } from "../../i18n/core";
 export type Stats = CStats;
 export type Mon = {
   n: string;
@@ -329,7 +331,7 @@ const F = (b: BState, e: StageEvent) => {
 const elOf = (b: BState, cls: string) => b.rx?.cat ?? CLASS_DEFS[cls]?.color;
 // estados antigos (salvos antes da atualização) ganham os campos novos
 // próximo monstro da sequência: o painel de mensagens começa limpo (recompensas e aviso de nível do monstro anterior saem)
-export function advanceWave(b: BState) {
+export function advanceWave(b: BState, t: (k: Key, v?: Vars) => string = tFor("pt-BR")) {
   b.e = b.q.shift()!;
   b.wave++;
   b.over = null;
@@ -338,7 +340,7 @@ export function advanceWave(b: BState) {
   b.res = [];
   b.lv = undefined;
   b.fx = [];
-  b.log = [b.endless ? `⚔ ${b.e.n} (Nv. ${b.e.L}) apareceu!` : `🏁 Etapa ${b.wave}: ${b.e.n} (Nv. ${b.e.L})`];
+  b.log = [b.endless ? t("bt.appearedEndless", { name: b.e.n, n: b.e.L }) : t("bt.stage", { w: b.wave, name: b.e.n, n: b.e.L })];
 }
 export function norm(b: BState, q: Stats) {
   b.pa ??= PA_MAX; b.used ??= {}; b.aegis ??= 0; b.aegisT ??= 0; b.eDef ??= 0; b.sifT ??= 0; b.charge ??= 0; b.et ??= 0;

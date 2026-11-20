@@ -3,6 +3,11 @@ import type { CSSProperties, ReactNode } from "react";
 import { bg, variants } from "@/lib/img";
 import { SPOTS, type Spot } from "@/lib/game/town";
 import TownScene from "@/components/stage/TownScene";
+import { getT } from "@/i18n/server";
+import { spotText } from "@/i18n/content";
+import type { Key } from "@/i18n/pt-BR";
+import type { Vars } from "@/i18n/core";
+type T = (k: Key, v?: Vars) => string;
 import { startBattle, rest } from "@/actions/battle";
 import SafeImg from "@/components/game/SafeImg";
 import GameIcon from "@/components/game/GameIcon";
@@ -50,7 +55,7 @@ const Cap = ({ big, chip, children }: { big?: boolean; chip?: ReactNode; childre
   </span>
 );
 
-function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm; expAt: number | null }) {
+function SpotView({ s, ready, mapName, realm, expAt, t }: { s: Spot; ready: boolean; mapName: string; realm: TownRealm; expAt: number | null; t: T }) {
   const base = `town-spot ${ready ? "" : "town-ph"}`;
   const ico = !ready && (
     <span className="town-ico">
@@ -63,7 +68,7 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
     s.id === "atividades" && expAt ? (
       <span className="town-chip town-chip-live">
         <i className="town-live" />
-        {Date.now() >= expAt ? "Expedição pronta!" : <RealmCountdown target={new Date(expAt).toISOString()} label="expedição termina em" />}
+        {Date.now() >= expAt ? t("town.expReady") : <RealmCountdown target={new Date(expAt).toISOString()} label={t("town.expEnds")} />}
       </span>
     ) : undefined;
 
@@ -80,10 +85,10 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
 
   if (s.kind === "soon")
     return (
-      <div className={`town-wrap ${base} town-soon`} style={pos(s)} data-spot={s.id} title="Em breve">
+      <div className={`town-wrap ${base} town-soon`} style={pos(s)} data-spot={s.id} title={t("town.soon")}>
         {ico}
         <Bubble s={s} />
-        <Cap chip={<span className="town-chip">[Em Breve]</span>}>
+        <Cap chip={<span className="town-chip">{t("town.soonChip")}</span>}>
           <GameIcon name={s.icon} /> {s.label}
         </Cap>
       </div>
@@ -98,7 +103,7 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
           <GameIcon name="swords" />
         </span>
         <Bubble s={s} />
-        <Cap big chip={<span className="town-chip town-chip-red">{s.kind === "arena" ? "Duelos PvP" : "Caça infinita"}</span>}>
+        <Cap big chip={<span className="town-chip town-chip-red">{s.kind === "arena" ? t("town.duels") : t("town.endless")}</span>}>
           <GameIcon name={s.kind === "arena" ? "swords" : "castle"} /> {s.label}
         </Cap>
       </Link>
@@ -122,14 +127,14 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
     return (
       <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
         <input type="hidden" name="kind" value="hunt" />
-        <button className={`${base} town-hunt`} aria-label={`Caçar monstros em ${mapName}`}>
+        <button className={`${base} town-hunt`} aria-label={t("town.huntLabel", { map: mapName })}>
           {ico}
           <span className="town-badge">
             <GameIcon name="swords" />
           </span>
-          <Bubble s={s} sub={`Enfrentar monstros em ${mapName}. Clique para lutar!`} />
-          <Cap big chip={<span className="town-chip town-chip-red">Clique para lutar</span>}>
-            <GameIcon name="swords" /> CAÇAR MONSTROS
+          <Bubble s={s} sub={t("town.huntSub", { map: mapName })} />
+          <Cap big chip={<span className="town-chip town-chip-red">{t("town.clickFight")}</span>}>
+            <GameIcon name="swords" /> {t("town.huntCap")}
           </Cap>
         </button>
       </form>
@@ -141,11 +146,11 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
       {realm.open ? (
         <>
           <i className="town-live" />
-          ABERTO · <RealmCountdown target={realm.at} label="fecha em" />
+          {t("town.open")} · <RealmCountdown target={realm.at} label={t("town.closesIn")} />
         </>
       ) : (
         <>
-          <GameIcon name="lock" /> <RealmCountdown target={realm.at} label="abre em" />
+          <GameIcon name="lock" /> <RealmCountdown target={realm.at} label={t("town.opensIn")} />
         </>
       )}
     </span>
@@ -154,7 +159,7 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
     <>
       {ico}
       {realm.open && <span className="town-realm-fx" />}
-      <Bubble s={s} sub={realm.open ? `${realm.tagline} 4 etapas, mais difícil que a caçada.` : "O portal está selado. Volte quando o Reino abrir."} />
+      <Bubble s={s} sub={realm.open ? t("town.realmOpenSub", { tagline: realm.tagline }) : t("town.realmSealed")} />
       <Cap big chip={chip}>
         <GameIcon name="portal" /> {realm.name}
       </Cap>
@@ -163,14 +168,15 @@ function SpotView({ s, ready, mapName, realm, expAt }: { s: Spot; ready: boolean
   return realm.open ? (
     <form action={startBattle} className="town-wrap" style={pos(s)} data-spot={s.id}>
       <input type="hidden" name="kind" value="dungeon" />
-      <button className={`${base} town-realm town-realm-open`} aria-label={`Entrar no ${realm.name}`}>{inner}</button>
+      <button className={`${base} town-realm town-realm-open`} aria-label={t("town.enter", { realm: realm.name })}>{inner}</button>
     </form>
   ) : (
     <div className={`town-wrap ${base} town-realm town-realm-closed`} style={pos(s)} data-spot={s.id}>{inner}</div>
   );
 }
 
-export default function TownMap({ slug, mapName, realm, expAt = null, meAv, mates = [] }: { slug: string; mapName: string; realm: TownRealm; expAt?: number | null; meAv?: string; mates?: string[] }) {
+export default async function TownMap({ slug, mapName, realm, expAt = null, meAv, mates = [] }: { slug: string; mapName: string; realm: TownRealm; expAt?: number | null; meAv?: string; mates?: string[] }) {
+  const { lang, t } = await getT();
   const ready = variants(`/town/${slug}`).length > 0; // sem imagem ainda: mostra os prédios como placeholders clicáveis
   return (
     <div className="town town-fit" style={{ background: "linear-gradient(160deg,#241a5a,#10102e 60%,#0b2a3a)" }}>
@@ -180,7 +186,7 @@ export default function TownMap({ slug, mapName, realm, expAt = null, meAv, mate
         <GameIcon name="pin" className="text-amber-300" /> {mapName}
       </div>
       {SPOTS.map((s) => (
-        <SpotView key={s.id} s={s} ready={ready} mapName={mapName} realm={realm} expAt={expAt} />
+        <SpotView key={s.id} s={spotText(lang, s)} ready={ready} mapName={mapName} realm={realm} expAt={expAt} t={t} />
       ))}
     </div>
   );

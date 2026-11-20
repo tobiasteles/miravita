@@ -2,15 +2,15 @@
 import { useEffect, useRef, useState } from "react";
 import { fxLevel } from "@/lib/fx";
 import { sfx } from "@/lib/sfx";
+import type { StageEvent } from "@/lib/game/fx-events";
 
 // Camada VISUAL do combate. Não decide nada: só compara o que o servidor já mandou (HP antes × depois) e anima a diferença.
 type Pop = { id: number; txt: string; cls: string; x: string; y: string };
-type Props = { enemyKey: string; enemyHp: number; playerHp: number; log: string[]; minimal?: boolean }; // minimal: a cena 3D cuida de partículas, flash e tremor
-const CRIT = /RUPTURA|PERFEITO/;
+type Props = { enemyKey: string; enemyHp: number; playerHp: number; log: string[]; fx?: StageEvent[]; minimal?: boolean }; // minimal: a cena 3D cuida de partículas, flash e tremor
 const FOE_POS = { x: "78%", y: "30%", fx: 0.78, fy: 0.3 }; // ajuste aqui se mudar a posição dos sprites
 const ME_POS = { x: "22%", y: "58%" };
 
-export default function BattleFx({ enemyKey, enemyHp, playerHp, log, minimal = false }: Props) {
+export default function BattleFx({ enemyKey, enemyHp, playerHp, log, fx, minimal = false }: Props) {
   const [pops, setPops] = useState<Pop[]>([]);
   const [flash, setFlash] = useState<{ n: number; c: string }>({ n: 0, c: "" });
   const prev = useRef<{ key: string; e: number; p: number; log: string[] } | null>(null);
@@ -51,10 +51,9 @@ export default function BattleFx({ enemyKey, enemyHp, playerHp, log, minimal = f
     prev.current = { key: enemyKey, e: enemyHp, p: playerHp, log };
     if (!was) return;
     const lvl = fxLevel();
-    const seen = new Set(was.log);
-    const added = log.filter((l) => !seen.has(l));
-    const myCrit = added.some((l) => CRIT.test(l) && !l.includes(" usa "));
-    const foeCrit = added.some((l) => CRIT.test(l) && l.includes(" usa "));
+    // crítico = evento "crit" gravado pelo servidor neste turno (independe do idioma do texto)
+    const myCrit = (fx ?? []).some((e) => e.k === "crit" && e.from !== "foe");
+    const foeCrit = (fx ?? []).some((e) => e.k === "crit" && e.from === "foe" && e.to === "me");
     const dE = was.key === enemyKey ? was.e - enemyHp : 0, dP = was.p - playerHp;
     const pop = (txt: string, cls: string, at: { x: string; y: string }) => {
       const id = ++seq.current;
@@ -87,7 +86,7 @@ export default function BattleFx({ enemyKey, enemyHp, playerHp, log, minimal = f
       sfx("heal");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemyKey, enemyHp, playerHp, log]);
+  }, [enemyKey, enemyHp, playerHp, log, fx]);
 
   useEffect(() => () => {
     cancelAnimationFrame(raf.current);

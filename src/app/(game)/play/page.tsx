@@ -2,7 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveCharacter } from "@/lib/session";
 import { xpToNext } from "@/lib/game/xp";
-import { CLASS_NAME } from "@/lib/game/classes";
+import { biomeLabel, className, mapLabel, realmName, realmTagline } from "@/i18n/content";
+import { subset } from "@/i18n";
+import { I18nProvider } from "@/i18n/client";
+import { getT } from "@/i18n/server";
 import { startBattle } from "@/actions/battle";
 import SafeImg from "@/components/game/SafeImg";
 import Tile from "@/components/game/Tile";
@@ -17,21 +20,21 @@ import { characters, partyMembers } from "@/db/schema";
 import { REALMS } from "@/lib/game/realms";
 import { realmStatus } from "@/lib/game/realm-schedule";
 
-const fmt = (n: number) => n.toLocaleString("pt-BR");
 
 // Tela FIXA (sem rolagem) no computador: topo (personagem) + [atalhos | CIDADE | ações]. No celular vira uma coluna normal.
 export default async function Play() {
+  const { lang, t, f } = await getT();
   const a = await getActiveCharacter();
   if (!a) redirect("/characters");
   const { c, map } = a;
   const pct = Math.min(100, (Number(c.xp) / xpToNext(c.level)) * 100);
   const slug = map?.slug ?? "planicie-de-aurora",
-    mapName = map?.name ?? "Planície de Aurora",
+    mapName = mapLabel(lang, slug, map?.name ?? "Planície de Aurora"),
     R = REALMS[slug],
     rs = realmStatus(slug);
   const realm = {
-    name: R?.name ?? "Reino",
-    tagline: R?.tagline ?? "",
+    name: R ? realmName(lang, R.name) : t("play.realmDefault"),
+    tagline: R ? realmTagline(lang, R.name, R.tagline) : "",
     open: rs.open,
     at: (rs.open ? rs.closesAt : rs.opensAt).toISOString(),
   };
@@ -66,10 +69,10 @@ export default async function Play() {
             <div className="flex flex-wrap items-baseline gap-x-3">
               <span className="truncate text-lg font-bold">{c.name}</span>
               <span className="text-sm text-violet-300">
-                {CLASS_NAME[c.classKey]} · Nv. {c.level}
+                {className(lang, c.classKey)} · {t("char.level", { n: c.level })}
               </span>
               <span className="flex items-center gap-1 text-sm text-amber-300">
-                <GameIcon name="coin" /> {fmt(Number(c.gold))}
+                <GameIcon name="coin" /> {f.n(Number(c.gold))}
               </span>
             </div>
             <div className="mt-1 h-2 rounded bg-[#0c0a1f]">
@@ -80,7 +83,7 @@ export default async function Play() {
             </div>
             <div className="mt-0.5 flex justify-between text-xs text-violet-300">
               <span>
-                XP {fmt(Number(c.xp))} / {fmt(xpToNext(c.level))}
+                XP {f.n(Number(c.xp))} / {f.n(xpToNext(c.level))}
               </span>
               <span className="flex items-center gap-3">
                 <span className="flex items-center gap-1">
@@ -104,7 +107,9 @@ export default async function Play() {
       <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         {/* esquerda: Missões, Inventário, Técnicas... */}
         <aside className={`${rail} order-2 lg:order-1`}>
-          <HotkeyBar />
+          <I18nProvider lang={lang} dict={subset(lang, "hk.")}>
+            <HotkeyBar />
+          </I18nProvider>
         </aside>
 
         {/* centro: a cidade (encaixa na altura da tela, nunca rola) */}
@@ -116,16 +121,16 @@ export default async function Play() {
         <aside className={`${rail} order-3`}>
           <Link href="/gate" className="town-hunt relative flex items-center gap-3 rounded-xl border-2 border-rose-500 bg-rose-950/40 p-3 transition hover:bg-rose-900/40">
             <GameIcon name="swords" size="1.9rem" className="text-rose-300" />
-            <div className="min-w-0 flex-1"><div className="font-bold">Portão da Cidade</div><div className="truncate text-xs text-rose-200">Caçada contínua em {mapName}</div></div>
+            <div className="min-w-0 flex-1"><div className="font-bold">{t("play.gate")}</div><div className="truncate text-xs text-rose-200">{t("play.gateSub", { map: mapName })}</div></div>
           </Link>
           <Link href="/arena" className="relative flex items-center gap-3 rounded-xl border-2 border-amber-500/70 bg-amber-950/20 p-3 transition hover:bg-amber-900/30">
             <GameIcon name="trophy" size="1.9rem" className="text-amber-300" />
-            <div className="min-w-0 flex-1"><div className="font-bold">Arena PvP</div><div className="truncate text-xs text-amber-200">Duelos e ranking</div></div>
+            <div className="min-w-0 flex-1"><div className="font-bold">{t("play.arena")}</div><div className="truncate text-xs text-amber-200">{t("play.arenaSub")}</div></div>
           </Link>
           <Tile
             icon={<GameIcon name="portal" className="text-violet-300" />}
             title={realm.name}
-            sub={realm.open ? "Aberto agora · 4 etapas" : "Fechado · abre em horário aleatório"}
+            sub={realm.open ? t("play.realmOpen") : t("play.realmClosed")}
             action={startBattle}
             fields={{ kind: "dungeon" }}
             accent="violet"
@@ -136,7 +141,7 @@ export default async function Play() {
               <GameIcon name="pin" className="text-amber-300" /> {mapName}
             </div>
             <div className="mt-1 text-xs text-violet-300">
-              Bioma: {map?.biome ?? "—"} · Nível mínimo {map?.minLevel ?? 1}
+              {t("play.biome", { biome: map?.biome ? biomeLabel(lang, map.biome) : "—", n: map?.minLevel ?? 1 })}
             </div>
             <div className="mt-2 text-xs text-violet-300">{realm.tagline}</div>
           </section>

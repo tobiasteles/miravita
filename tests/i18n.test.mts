@@ -48,3 +48,16 @@ test("conteúdo do jogo: toda classe, bloco e traço tem versão em inglês", ()
   for (const [b] of BLOCKS) assert.ok(blocksEn[b], `bloco ${b}`);
   for (const id of ["analitico", "empatico", "criativo", "resiliente"]) assert.ok(traitsEn[id]?.name && traitsEn[id]?.desc, `traço ${id}`);
 });
+
+import { elementsEn, mapsEn, realmsEn, spotsEn } from "../src/i18n/content/en";
+import { REALMS } from "../src/lib/game/realms";
+import { SPOTS } from "../src/lib/game/town";
+import { ELEMENTS } from "../src/lib/game/elements";
+test("conteúdo do mundo: prédios, reinos e elementos têm versão em inglês", () => {
+  for (const s of SPOTS) assert.ok(spotsEn[s.id]?.label && spotsEn[s.id]?.merchant && spotsEn[s.id]?.line, `prédio ${s.id}`);
+  for (const r of Object.values(REALMS)) assert.ok(realmsEn[r.name]?.name && realmsEn[r.name]?.tagline, `reino ${r.name}`);
+  for (const slug of ["planicie-de-aurora", "floresta-sussurrante", "deserto-cinzento", "montanha-de-ferro", "pantano-radioativo", "abismo-do-cacador"]) assert.ok(mapsEn[slug], slug);
+  assert.equal(elementsEn.length, 118);
+  assert.equal(ELEMENTS.length, 118);
+  assert.equal(new Set(elementsEn).size, 118);
+});

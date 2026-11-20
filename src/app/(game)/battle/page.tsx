@@ -12,10 +12,15 @@ import { loadout4 } from "@/lib/game/loadout";
 import { pvpNorm } from "@/lib/game/pvp";
 import BattleScreen from "@/components/game/BattleScreen";
 import BattleIntro from "@/components/game/BattleIntro";
+import { mapLabel, realmName, realmTagline } from "@/i18n/content";
+import { subset } from "@/i18n";
+import { I18nProvider } from "@/i18n/client";
+import { getT } from "@/i18n/server";
 export const dynamic = "force-dynamic";
 export default async function Battle() {
   const a = await getActiveCharacter();
   if (!a) redirect("/characters");
+  const { lang, t } = await getT();
   const [row] = await db.select().from(battles).where(eq(battles.characterId, a.c.id));
   if (!row) redirect("/play");
   const P = await loadPlayer(a.c.id), cls = P.k.key;
@@ -37,13 +42,13 @@ export default async function Battle() {
       };
     });
   return (
-    <>
+    <I18nProvider lang={lang} dict={subset(lang, "battle.")}>
       {intro && (
         <BattleIntro
           realm={st.dungeon}
-          title={st.pvp ? "Arena PvP" : st.dungeon ? (RM?.name ?? "Reino") : st.ambush ? "Emboscada!" : (a.map?.name ?? "Caçada")}
-          tagline={st.pvp ? "Duelo! Sem poções e com status normalizados." : st.dungeon ? `${RM?.tagline ?? ""} · 4 etapas` : st.ambush ? "Você foi surpreendido na estrada!" : "Prepare-se para a luta!"}
-          foe={`${st.e.n} (Nv. ${st.e.L})`}
+          title={st.pvp ? t("intro.pvp") : st.dungeon ? (RM ? realmName(lang, RM.name) : t("play.realmDefault")) : st.ambush ? t("intro.ambush") : a.map ? mapLabel(lang, a.map.slug, a.map.name) : t("intro.hunt")}
+          tagline={st.pvp ? t("intro.pvpTag") : st.dungeon ? t("intro.realmTag", { tagline: RM ? realmTagline(lang, RM.name, RM.tagline) : "" }) : st.ambush ? t("intro.ambushTag") : t("intro.huntTag")}
+          foe={t("intro.foe", { name: st.e.n, n: st.e.L })}
         />
       )}
       <BattleScreen
@@ -55,6 +60,6 @@ export default async function Battle() {
           dom: domBtn(cls, P.c.domain, P.c.level, P.c.mp, Q.mp, st),
         }}
       />
-    </>
+    </I18nProvider>
   );
 }

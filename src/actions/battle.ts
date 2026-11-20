@@ -21,6 +21,8 @@ import { addElement } from "@/lib/equip";
 import { loadout4 } from "@/lib/game/loadout";
 import { pvpNorm } from "@/lib/game/pvp";
 import { settleDuel } from "@/lib/arena-db";
+import { getT } from "@/i18n/server";
+import { elementName, realmName as realmLabel } from "@/i18n/content";
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1),
   rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)),
   pk = <T,>(a: T[]) => a[rn(0, a.length - 1)];
@@ -37,12 +39,13 @@ export async function startBattle(fd: FormData) {
     const P = await loadPlayer(a.c.id);
     const sp = (kind: "mon" | "sub" | "boss") => spawn(slug, lvl, kind, dungeon);
     const [e, ...q] = dungeon ? [await sp("mon"), await sp("sub"), await sp("mon"), await sp("boss")] : [await sp("mon")]; // Reino: monstro, sub-chefe, monstro, chefe
+    const { lang, t } = await getT();
     const realmName = REALMS[slug]?.name ?? "Reino";
     const state = blankState(e, q, slug, {
       dungeon,
       endless,
       run: endless ? { kills: 0, xp: 0, gold: 0, heat: 0 } : undefined,
-      log: dungeon ? [`🏰 Você entra no ${realmName}!`, `🏁 Etapa 1: ${e.n} (Nv. ${e.L})`] : [`${e.n} (Nv. ${e.L}) apareceu!`],
+      log: dungeon ? [t("bt.enterRealm", { realm: realmLabel(lang, realmName) }), t("bt.stage", { w: 1, name: e.n, n: e.L })] : [t("bt.appeared", { name: e.n, n: e.L })],
     });
     await infuse(a.c.id, P.k.key, P.kit.infuse, state, P.q.hp);
     await saveBattle(a.c.id, state);
@@ -89,12 +92,13 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       return;
     }
     const b = row.state as BState;
+    const { lang, t, f } = await getT(); // mensagens da luta são gravadas no idioma de quem joga
     let P = await loadPlayer(cid);
     const p = { hp: P.c.hp, mp: P.c.mp, gold: Number(P.c.gold), lv: P.c.level };
     let lvl = P.c.level, xp = Number(P.c.xp), lvUp = 0;
     if (act.a === "next") {
       if (b.over === "wave") {
-        advanceWave(b); // zera log, recompensas e aviso de nível do monstro anterior
+        advanceWave(b, t); // zera log, recompensas e aviso de nível do monstro anterior
         if (b.endless) await infuse(cid, P.k.key, P.kit.infuse, b, P.q.hp);
       }
     } else {
@@ -103,7 +107,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         if (!loadout4(P.kit.loadout).includes(act.i) || !P.kit.learned.includes(act.i)) return;
       }
       if (act.a === "potion" && b.e.pvp) {
-        b.log.push("Poções são proibidas na Arena.");
+        b.log.push(t("bt.noPotionsArena"));
         await db.update(battles).set({ state: b }).where(eq(battles.characterId, cid));
         return;
       }
@@ -111,7 +115,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
         // gasta 1 poção do estoque; sem estoque, avisa e não perde o turno
         const nm = act.k === "ea" ? CONS.ea.name : CONS.hp.name, { row } = await stack(cid, nm);
         if (!row || row.quantity < 1) {
-          b.log.push(`Você não tem ${nm}. Compre na Loja de Conveniência.`);
+          b.log.push(t("bt.noPotion", { name: nm }));
           await db.update(battles).set({ state: b }).where(eq(battles.characterId, cid));
           return;
         }
@@ -162,21 +166,21 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
             await db.insert(questProgress).values({ characterId: cid, questId: cq.id, progress: 1 }).onConflictDoUpdate({ target: [questProgress.characterId, questProgress.questId], set: { progress: sql`${questProgress.progress} + 1` } });
         const r = applyXp(lvl, xp, gain);
         lvl = r.level; xp = r.xp; lvUp = r.levelsGained;
-        b.res = [`✅ ${b.e.n} derrotado! +${gain.toLocaleString()} XP, +${g}g`];
+        b.res = [t("bt.defeated", { name: b.e.n, xp: f.n(gain), g })];
         if (Math.random() < Math.min(1, (kind === "mon" ? 0.5 : 1) * md)) {
           const z = pk(kind === "mon" ? w.dr : w.dg), n = Math.max(1, Math.round((kind === "boss" ? rn(2, 4) : rn(1, 2)) * md));
           await addElement(cid, z, n);
           await track(cid, "gather", "", n);
-          b.res.push(`+${n}× ${elName(z)}`);
+          b.res.push(t("bt.dropEl", { n, el: elementName(lang, z, elName(z)) }));
         }
         if (b.over === "win" && b.dungeon) {
-          b.res.push(`🏰 ${REALMS[b.mapSlug]?.name ?? "Reino"} concluído!`);
+          b.res.push(t("bt.realmDone", { realm: REALMS[b.mapSlug] ? realmLabel(lang, REALMS[b.mapSlug].name) : t("play.realmDefault") }));
           await track(cid, "portal", b.mapSlug);
           for (let i = 0; i < 2; i++) {
             const z = pk(w.dg), n = rn(1, 3);
             await addElement(cid, z, n);
             await track(cid, "gather", "", n);
-            b.res.push(`🏆 +${n}× ${elName(z)}`);
+            b.res.push(t("bt.bonusEl", { n, el: elementName(lang, z, elName(z)) }));
           }
         }
         if (lvUp) b.lv = lvl; // aviso temporário na tela, não fica no registro
@@ -186,13 +190,13 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
           b.run.heat = Math.min(0.6, 0.04 * Math.floor(b.run.kills / 5));
           const n = b.run.kills + 1, nk = n % 25 === 0 ? "boss" : n % 10 === 0 ? "sub" : "mon";
           b.q = [await spawn(b.mapSlug, lvl, nk, false, b.run.heat)];
-          if (nk !== "mon") b.res.push(`⚠ Próximo: ${nk === "boss" ? "CHEFE" : "sub-chefe"}!`);
+          if (nk !== "mon") b.res.push(nk === "boss" ? t("bt.nextBoss") : t("bt.nextSub"));
         }
       }
       if (b.over === "lose" && !b.e.pvp) {
         p.hp = Math.ceil(P.q.hp / 2);
         p.gold = Math.floor(p.gold * 0.9);
-        b.res = ["💀 Você caiu. Perdeu 10% do ouro."];
+        b.res = [t("bt.fell")];
       }
     }
     await db.update(characters).set({ hp: p.hp, mp: p.mp, gold: p.gold, level: lvl, xp }).where(eq(characters.id, cid));

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { variants } from "@/lib/img";
 import { SPOTS, expPhase, isNight } from "@/lib/game/town";
 import { useToast } from "@/components/ui";
+import { useT } from "@/i18n/client";
 import { useStageBus } from "./bus";
 import { markSlow, useStageMode } from "./support";
 
@@ -12,7 +13,7 @@ const TownStage = dynamic(() => import("./TownStage"), { ssr: false });
 const avUrls = (av: string) => [...variants(`/battle/player/${av}`), ...variants(`/avatars/${av}`)];
 
 export default function TownScene({ slug, realmOpen, expEndsAt, meAv, mates }: { slug: string; realmOpen: boolean; expEndsAt: number | null; meAv: string; mates: string[] }) {
-  const mode = useStageMode(), bus = useStageBus(), toast = useToast();
+  const mode = useStageMode(), bus = useStageBus(), toast = useToast(), { t } = useT();
   const root = useRef<HTMLDivElement>(null);
   const [hot, setHot] = useState<string | null>(null);
   const [night, setNight] = useState(false), [now, setNow] = useState(0);
@@ -62,7 +63,7 @@ export default function TownScene({ slug, realmOpen, expEndsAt, meAv, mates }: {
           realmOpen={realmOpen}
           exp={expPhase(expEndsAt, now || Date.now())}
           onReady={() => setReady(true)}
-          onSlow={() => { markSlow(); setSlow(true); setReady(false); toast("O aparelho ficou lento: voltamos ao modo 2D.", "warn"); }}
+          onSlow={() => { markSlow(); setSlow(true); setReady(false); toast(t("stage.slow"), "warn"); }}
         />
       )}
     </div>

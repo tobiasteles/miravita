@@ -6,5 +6,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 export default async function Root({ children }: { children: React.ReactNode }) {
   const lang = await getLang();
-  return <html lang={lang} className={brand.variable}><body className="min-h-screen pb-6"><I18nProvider lang={lang} dict={subset(lang, "common.", "lang.")}><ToastProvider>{children}</ToastProvider><MusicPlayer /></I18nProvider></body></html>;
+  return <html lang={lang} className={brand.variable}><body className="min-h-screen pb-6"><I18nProvider lang={lang} dict={subset(lang, "common.", "lang.", "menu.", "stage.")}><ToastProvider>{children}</ToastProvider><MusicPlayer /></I18nProvider></body></html>;
 }

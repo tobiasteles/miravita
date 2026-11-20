@@ -1,11 +1,13 @@
 "use client";
 import { buttonClass } from "@/components/ui/Button";
 import LangSwitch from "@/components/LangSwitch";
+import { useT } from "@/i18n/client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { logout } from "@/actions/auth";
 type View = null | "menu" | "settings";
 export default function EscMenu() {
+  const { t } = useT();
   const [v, setV] = useState<View>(null);
   const r = useRouter();
   const [s, setS] = useState({
@@ -38,8 +40,8 @@ export default function EscMenu() {
       {/* botão do menu: só os três pontinhos (a tecla Esc continua abrindo e fechando o menu) */}
       <button
         onClick={() => setV("menu")}
-        aria-label="Menu"
-        title="Menu"
+        aria-label={t("menu.open")}
+        title={t("menu.open")}
         className="fixed right-3 top-3 z-40 grid h-10 w-10 place-items-center rounded-full border border-violet-800 bg-[#171433]/90 text-violet-200 transition hover:border-violet-400 hover:text-white"
       >
         <svg
@@ -66,9 +68,9 @@ export default function EscMenu() {
           >
             {v === "menu" ? (
               <>
-                <h2 className="text-lg font-bold">Pausa</h2>
+                <h2 className="text-lg font-bold">{t("menu.pause")}</h2>
                 <button className={btn} onClick={() => setV("settings")}>
-                  ⚙️ Configurações
+                  ⚙️ {t("menu.settings")}
                 </button>
                 <button
                   className={btn}
@@ -77,26 +79,26 @@ export default function EscMenu() {
                     r.push("/characters");
                   }}
                 >
-                  👥 Seleção de personagem
+                  👥 {t("menu.characters")}
                 </button>
                 <button
                   className={btn + " !bg-rose-600"}
                   onClick={() => logout()}
                 >
-                  🚪 Desconectar
+                  🚪 {t("menu.logout")}
                 </button>
                 <button
                   className="w-full rounded border border-violet-800 p-2"
                   onClick={() => setV(null)}
                 >
-                  Voltar
+                  {t("menu.back")}
                 </button>
               </>
             ) : (
               <>
-                <h2 className="text-lg font-bold">Configurações</h2>
+                <h2 className="text-lg font-bold">{t("menu.settings")}</h2>
                 <label className="block">
-                  Som {s.sound}
+                  {t("menu.sound", { n: s.sound })}
                   <input
                     type="range"
                     className="w-full"
@@ -105,14 +107,14 @@ export default function EscMenu() {
                   />
                 </label>
                 <label className="block">
-                  Gráficos
+                  {t("menu.graphics")}
                   <select
                     className="w-full rounded bg-[#0c0a1f] p-2"
                     value={s.graphics}
                     onChange={(e) => setS({ ...s, graphics: e.target.value })}
                   >
-                    <option>baixa</option>
-                    <option>alta</option>
+                    <option value="baixa">{t("menu.low")}</option>
+                    <option value="alta">{t("menu.high")}</option>
                   </select>
                 </label>
                 <label className="block">
@@ -123,7 +125,7 @@ export default function EscMenu() {
                       setS({ ...s, notifications: e.target.checked })
                     }
                   />{" "}
-                  Notificações
+                  {t("menu.notifications")}
                 </label>
                 <label className="block">
                   <input
@@ -131,11 +133,11 @@ export default function EscMenu() {
                     checked={s.scene3d !== false}
                     onChange={(e) => setS({ ...s, scene3d: e.target.checked })}
                   />{" "}
-                  Cena 3D na batalha e na cidade (vale ao recarregar a página)
+                  {t("menu.scene3d")}
                 </label>
                 <LangSwitch />
                 <button className={btn} onClick={() => setV("menu")}>
-                  Voltar
+                  {t("menu.back")}
                 </button>
               </>
             )}
