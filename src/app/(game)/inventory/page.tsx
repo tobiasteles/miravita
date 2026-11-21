@@ -7,6 +7,12 @@ import { getActiveCharacter } from "@/lib/session";
 import { toggleEquip } from "@/actions/inventory";
 import SafeImg from "@/components/game/SafeImg";
 import CraftingBench from "@/components/game/CraftingBench";
+import { ALLOYS, CRAFTABLE_Z, craftCheck, material } from "@/lib/game/materials";
+import { ELEMENT_BY_Z } from "@/lib/game/elements";
+import { elementName } from "@/i18n/content";
+import { errKey, subset } from "@/i18n";
+import { I18nProvider } from "@/i18n/client";
+import { getT } from "@/i18n/server";
 import { SLOTS, slotsFor, slotIcon, itemIcon, statLine } from "@/lib/game/equipment";
 import { usesSword } from "@/lib/game/classes";
 import GameIcon from "@/components/game/GameIcon";
@@ -19,7 +25,9 @@ const RC: Record<string, string> = {
 };
 const st = (s: Record<string, number | undefined>) => statLine(s);
 
-export default async function Inv() {
+export default async function Inv({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+  const { error } = await searchParams;
+  const { lang, t } = await getT(), ek = errKey(error);
   const a = await getActiveCharacter();
   if (!a) redirect("/characters");
   const rows = await db
@@ -37,6 +45,13 @@ export default async function Inv() {
       qty: r.inv.quantity,
       rarity: r.it.rarity,
     }));
+  // bancada: elementos que fabricam (com a conta de 5 unidades), as ligas e, à parte, os que o jogador tem mas não viram equipamento
+  const have = new Map(mats.map((m) => [m.z, m.qty])), sy = (z: number) => ELEMENT_BY_Z.get(z)![1];
+  const forgeMats = [
+    ...CRAFTABLE_Z.filter((z) => (have.get(z) ?? 0) > 0).map((z) => ({ id: `e:${z}`, symbol: sy(z), label: elementName(lang, z, ELEMENT_BY_Z.get(z)![2]), sub: `×${have.get(z)}`, can: (have.get(z) ?? 0) >= 5, rarity: material(`e:${z}`)!.rarity })),
+    ...ALLOYS.map((al) => ({ id: `a:${al.id}`, symbol: sy(al.z), label: t(`alloy.${al.id}` as "alloy.aco"), sub: al.inp.map(([z, q]) => `${sy(z)}×${q}`).join(" + "), can: al.inp.every(([z, q]) => (have.get(z) ?? 0) >= q), rarity: material(`a:${al.id}`)!.rarity, noWeapon: !!al.noWeapon })),
+  ];
+  const blocked = mats.flatMap((m) => { const c = craftCheck(m.z); return c.ok ? [] : [{ symbol: m.symbol, name: m.name, why: t(`why.${c.why}` as "why.gas") }]; });
   const gear = rows
     .filter((r) => r.it.type !== "material")
     .sort((x, y) => (y.inv.equipped ? 1 : 0) - (x.inv.equipped ? 1 : 0));
@@ -48,14 +63,18 @@ export default async function Inv() {
       </Link>
       <h1 className="flex items-center gap-2 text-xl font-bold"><GameIcon name="anvil" className="text-rose-300" /> Bancada de Forja</h1>
       <section className="rounded-lg border border-violet-900 bg-[#171433] p-3">
-        <CraftingBench
-          mats={mats}
-          slots={SLOTS.map((s) => ({
-            key: s.key,
-            label: s.label,
-            icon: s.icon,
-          }))}
-        />
+        {ek && <p role="alert" className="mb-2 rounded border border-rose-600 bg-rose-950/50 p-2 text-sm text-rose-200">{t(ek)}</p>}
+        <I18nProvider lang={lang} dict={subset(lang, "forge.")}>
+          <CraftingBench
+            mats={forgeMats}
+            blocked={blocked}
+            slots={SLOTS.map((s) => ({
+              key: s.key,
+              label: s.label,
+              icon: s.icon,
+            }))}
+          />
+        </I18nProvider>
       </section>
 
       <section className="rounded-lg border border-violet-900 bg-[#171433] p-3">

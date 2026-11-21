@@ -1,7 +1,9 @@
 import { and, eq, sql } from "drizzle-orm"; import { db } from "@/db";
-import { characters, elements, inventory, items, questProgress } from "@/db/schema";
-import { computeItem } from "@/lib/game/item-stats"; import { applyXp, monsterXp } from "@/lib/game/xp"; import { addCons, CONS } from "@/lib/consumables";
+import { characters, inventory, items, questProgress } from "@/db/schema";
+import { applyXp, monsterXp } from "@/lib/game/xp"; import { addCons, CONS } from "@/lib/consumables";
 import { STORY, today, type Reward } from "@/lib/game/story";
+import { craftStats, material, nearestCraftable } from "@/lib/game/materials";
+import { ELEMENT_BY_Z } from "@/lib/game/elements";
 
 // ───── progresso das missões (capítulos e diárias) ─────
 export async function bump(cid: string, id: string, n = 1) {
@@ -19,11 +21,12 @@ async function addMaterial(cid: string, z: number, n: number) {
   const [ex] = await db.select().from(inventory).where(and(eq(inventory.characterId, cid), eq(inventory.itemId, it.id))).limit(1);
   if (ex) await db.update(inventory).set({ quantity: ex.quantity + n }).where(eq(inventory.id, ex.id)); else await db.insert(inventory).values({ characterId: cid, itemId: it.id, quantity: n });
 }
-async function addGear(cid: string, z: number, kind: "arma" | "armadura") { // equipa sozinho só se for melhor que o atual; senão fica na mochila
-  const [el] = await db.select().from(elements).where(eq(elements.atomicNumber, z)); if (!el) return; const s = computeItem(el);
-  const [ni] = await db.insert(items).values({ elementAtomicNumber: z, name: `${kind === "arma" ? "Lâmina" : "Armadura"} de ${el.name}`, type: kind, rarity: s.rarity, stats: { atk: kind === "arma" ? s.atk : 0, def: kind === "armadura" ? s.def : 0, durability: s.durability }, value: s.value * 3 }).returning({ id: items.id });
+async function addGear(cid: string, z0: number, kind: "arma" | "armadura") { // equipa sozinho só se for melhor que o atual; senão fica na mochila
+  const z = nearestCraftable(z0), m = material(`e:${z}`); if (!m) return; // recompensa de gás/radioativo etc. vira o fabricável de raridade mais próxima
+  const slot = kind === "arma" ? "arma" : "armadura", s = craftStats(m, slot), matName = ELEMENT_BY_Z.get(z)![2];
+  const [ni] = await db.insert(items).values({ elementAtomicNumber: z, name: `${kind === "arma" ? "Lâmina" : "Armadura"} de ${matName}`, type: kind, rarity: m.rarity, stats: s, value: m.value * 3 }).returning({ id: items.id });
   const cur = await db.select({ id: inventory.id, st: items.stats }).from(inventory).innerJoin(items, eq(inventory.itemId, items.id)).where(and(eq(inventory.characterId, cid), eq(inventory.equipped, true), eq(items.type, kind)));
-  const better = kind === "arma" ? s.atk > Math.max(0, ...cur.map((x) => x.st.atk ?? 0)) : s.def > Math.max(0, ...cur.map((x) => x.st.def ?? 0));
+  const better = kind === "arma" ? (s.atk ?? 0) > Math.max(0, ...cur.map((x) => x.st.atk ?? 0)) : (s.def ?? 0) > Math.max(0, ...cur.map((x) => x.st.def ?? 0));
   if (better) for (const o of cur) await db.update(inventory).set({ equipped: false }).where(eq(inventory.id, o.id));
   await db.insert(inventory).values({ characterId: cid, itemId: ni.id, equipped: better, currentDurability: s.durability });
 }

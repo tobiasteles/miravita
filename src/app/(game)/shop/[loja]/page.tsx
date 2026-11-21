@@ -4,9 +4,11 @@ import { db } from "@/db";
 import { elements } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { computeItem } from "@/lib/game/item-stats";
+import { canCraft, craftStats, material } from "@/lib/game/materials";
+import { getT } from "@/i18n/server";
 import { GATE, gearPrice, reagentPrice } from "@/lib/game/shop";
 import { CONS, price, stack, type ConsKey } from "@/lib/consumables";
-import { computeEquip, computeWeapon, EQUIP_NAMES, slotsFor, statLine, WEAPONS, TRAJE_TIERS, TRAJE_THEME, trajeName, trajeStats, type WeaponKind } from "@/lib/game/equipment";
+import { EQUIP_NAMES, slotsFor, statLine, WEAPONS, TRAJE_TIERS, TRAJE_THEME, trajeName, trajeStats, type WeaponKind } from "@/lib/game/equipment";
 import { usesSword, CLASS_NAME } from "@/lib/game/classes";
 import { COMMON_Z } from "@/lib/game/world";
 import { buyConsumable, buyGear, buyWeapon, buyTraje, buyReagent } from "@/actions/shop";
@@ -85,7 +87,7 @@ export default async function Shop({ params, searchParams }: { params: Promise<{
       else {
         const kind = (sp.arma as WeaponKind) in WEAPONS ? (sp.arma as WeaponKind) : "cajado";
         const els = await db.select().from(elements);
-        const list = els.map((e) => ({ e, s: computeItem(e) })).sort((x, y) => x.s.score - y.s.score);
+        const list = els.filter((e) => canCraft(e.atomicNumber)).map((e) => ({ e, s: material(`e:${e.atomicNumber}`)! })).sort((x, y) => x.s.score - y.s.score);
         body = (
           <>
             <div className="flex flex-wrap gap-1">
@@ -93,7 +95,7 @@ export default async function Shop({ params, searchParams }: { params: Promise<{
             </div>
             <p className="text-xs text-violet-300">{WEAPONS[kind].desc} Ao comprar, a arma é equipada.</p>
             {list.map(({ e, s }) => {
-              const st = computeWeapon(kind, s), p = Math.round(gearPrice(s.value) * 1.2), gate = GATE[s.rarity], ok = c.level >= gate;
+              const st = craftStats(s, "arma", kind), p = Math.round(gearPrice(s.value) * 1.2), gate = GATE[s.rarity], ok = c.level >= gate;
               return (
                 <form key={e.atomicNumber} action={buyWeapon} className={`${card} ${ok ? "" : "opacity-50"}`}>
                   <input type="hidden" name="kind" value={kind} />
@@ -174,11 +176,13 @@ export default async function Shop({ params, searchParams }: { params: Promise<{
     const slots = slotsFor(c.classKey);
     const slot = slots.find((s) => s.key === sp.peca) ?? slots[0];
     const els = await db.select().from(elements);
-    const list = els.map((e) => { const s = computeItem(e); return { e, s, stats: computeEquip(slot.key, s), p: gearPrice(s.value), gate: GATE[s.rarity] }; }).sort((x, y) => x.s.score - y.s.score);
+    const list = els.filter((e) => canCraft(e.atomicNumber)).map((e) => { const s = material(`e:${e.atomicNumber}`)!; return { e, s, stats: craftStats(s, slot.key), p: gearPrice(s.value), gate: GATE[s.rarity] }; }).sort((x, y) => x.s.score - y.s.score);
+    const { t } = await getT();
     return (
       <main className="mx-auto max-w-2xl space-y-2 p-4">
         {head(<><GameIcon name="anvil" className="text-rose-300" /> Ferreiro — Equipamentos</>, "Ao comprar, a peça é equipada e substitui a atual")}
         {!sword && <p className="text-xs text-violet-300">Armas mágicas (Grimório, Orbe, Cajado) e Trajes de Batalha ficam na <Link href="/shop/conveniencia?aba=armas" className="text-cyan-300 underline">Loja de Conveniência</Link>.</p>}
+        <p className="text-xs text-violet-300">{t("shop.craftNote")}</p>
         <div className="flex flex-wrap gap-1">
           {slots.map((s) => tab(`/shop/equipamentos?peca=${s.key}`, slot.key === s.key, <><GameIcon name={s.icon} /> {EQUIP_NAMES[c.classKey][s.key]}</>))}
         </div>

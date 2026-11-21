@@ -5,14 +5,14 @@ import { db } from "@/db";
 import { characters, inventory, items, elements } from "@/db/schema";
 import { withChar } from "@/lib/lock";
 import { computeItem } from "@/lib/game/item-stats";
+import { craftStats, material } from "@/lib/game/materials";
+import { ELEMENT_BY_Z } from "@/lib/game/elements";
 import { GATE, gearPrice, reagentPrice } from "@/lib/game/shop";
 import { giveEquipped, addElement } from "@/lib/equip";
 import { usesSword } from "@/lib/game/classes";
 import { COMMON_Z } from "@/lib/game/world";
 import { CONS, price, addCons, type ConsKey } from "@/lib/consumables";
 import {
-  computeEquip,
-  computeWeapon,
   WEAPONS,
   TRAJE_TIERS,
   trajeName,
@@ -48,13 +48,10 @@ export async function buyGear(fd: FormData) {
       slot = String(fd.get("slot")) as SlotKey;
     if (!SLOT_KEYS.includes(slot)) return;
     if (slot === "arma" && !usesSword(a.c.classKey)) return; // armas mágicas só na Conveniência
-    const [el] = await db
-      .select()
-      .from(elements)
-      .where(eq(elements.atomicNumber, z));
-    if (!el) return;
-    const s = computeItem(el),
-      stats = computeEquip(slot, s),
+    const s = material(`e:${z}`); // gás, líquido, radioativo, tóxico… não viram equipamento (validado aqui)
+    if (!s) return;
+    const el = { name: ELEMENT_BY_Z.get(z)![2] },
+      stats = craftStats(s, slot),
       cost = gearPrice(s.value);
     if (a.c.level < GATE[s.rarity] || Number(a.c.gold) < cost) return;
     const [ni] = await db
@@ -106,9 +103,9 @@ export async function buyWeapon(fd: FormData) {
     if (!a || usesSword(a.c.classKey)) return;
     const kind = String(fd.get("kind")) as WeaponKind, z = Number(fd.get("z"));
     if (!WEAPONS[kind]) return;
-    const [el] = await db.select().from(elements).where(eq(elements.atomicNumber, z));
-    if (!el) return;
-    const s = computeItem(el), stats = computeWeapon(kind, s), cost = Math.round(gearPrice(s.value) * 1.2);
+    const s = material(`e:${z}`);
+    if (!s) return;
+    const el = { name: ELEMENT_BY_Z.get(z)![2] }, stats = craftStats(s, "arma", kind), cost = Math.round(gearPrice(s.value) * 1.2);
     if (a.c.level < GATE[s.rarity] || Number(a.c.gold) < cost) return;
     await giveEquipped(a.c.id, { name: `${WEAPONS[kind].label} de ${el.name}`, type: "arma", slot: kind, rarity: s.rarity, stats, value: s.value * 3, z });
     await db.update(characters).set({ gold: Number(a.c.gold) - cost }).where(eq(characters.id, a.c.id));

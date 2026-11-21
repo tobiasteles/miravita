@@ -132,9 +132,9 @@ export function trajeStats(cls: string, tier: number): EquipStats {
 // rótulos dos status nas telas (nomenclatura nova)
 export const STAT_TXT: Record<string, string> = {
   atk: "Poderio", def: "Defesa", hp: "HP", mp: "MP", crit: "Chance de Ruptura", res: "Ressonância", mit: "Mitigação", sifV: "Sifão Vital", sifE: "Sifão de Essência",
-  foco: "Foco", refl: "Reflexos", reg: "Regeneração Inerente", imp: "Ímpeto de Caçador", ten: "Tenacidade", ret: "Retaliação", qg: "Quebra de Guarda", rupD: "Dano de Ruptura", pen: "Penetração de Status",
+  foco: "Foco", weight: "Peso", fire: "Resist. ao fogo", refl: "Reflexos", reg: "Regeneração Inerente", imp: "Ímpeto de Caçador", ten: "Tenacidade", ret: "Retaliação", qg: "Quebra de Guarda", rupD: "Dano de Ruptura", pen: "Penetração de Status",
 };
-const PCT = new Set(["crit", "res", "mit", "sifV", "sifE", "reg", "imp", "ten", "ret", "qg", "rupD", "pen"]);
+const PCT = new Set(["fire", "crit", "res", "mit", "sifV", "sifE", "reg", "imp", "ten", "ret", "qg", "rupD", "pen"]);
 export const statLine = (s: Record<string, number | undefined>) =>
   Object.entries(s).filter(([k, v]) => k !== "durability" && v).map(([k, v]) => `${STAT_TXT[k] ?? k} +${v}${PCT.has(k) ? "%" : ""}`).join(" · ");
 
