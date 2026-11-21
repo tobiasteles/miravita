@@ -22,7 +22,8 @@ import { loadout4 } from "@/lib/game/loadout";
 import { pvpNorm } from "@/lib/game/pvp";
 import { settleDuel } from "@/lib/arena-db";
 import { getT } from "@/i18n/server";
-import { elementName, realmName as realmLabel } from "@/i18n/content";
+import { makeTx } from "@/i18n/tx";
+import { elementName, monsterName, realmName as realmLabel } from "@/i18n/content";
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1),
   rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)),
   pk = <T,>(a: T[]) => a[rn(0, a.length - 1)];
@@ -45,7 +46,7 @@ export async function startBattle(fd: FormData) {
       dungeon,
       endless,
       run: endless ? { kills: 0, xp: 0, gold: 0, heat: 0 } : undefined,
-      log: dungeon ? [t("bt.enterRealm", { realm: realmLabel(lang, realmName) }), t("bt.stage", { w: 1, name: e.n, n: e.L })] : [t("bt.appeared", { name: e.n, n: e.L })],
+      log: dungeon ? [t("bt.enterRealm", { realm: realmLabel(lang, realmName) }), t("bt.stage", { w: 1, name: monsterName(lang, e.n, e.ne), n: e.L })] : [t("bt.appeared", { name: monsterName(lang, e.n, e.ne), n: e.L })],
     });
     await infuse(a.c.id, P.k.key, P.kit.infuse, state, P.q.hp);
     await saveBattle(a.c.id, state);
@@ -98,7 +99,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
     let lvl = P.c.level, xp = Number(P.c.xp), lvUp = 0;
     if (act.a === "next") {
       if (b.over === "wave") {
-        advanceWave(b, t); // zera log, recompensas e aviso de nível do monstro anterior
+        advanceWave(b, t, (n, ne) => monsterName(lang, n, ne)); // zera log, recompensas e aviso de nível do monstro anterior
         if (b.endless) await infuse(cid, P.k.key, P.kit.infuse, b, P.q.hp);
       }
     } else {
@@ -123,7 +124,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
       }
       const before = b.over, used0 = b.domUsed;
       const Q = b.e.pvp ? pvpNorm(P.q, P.c.level) : P.q; // na Arena os status são normalizados (ver pvp.ts)
-      step(b, p, Q, P.k.key, act, P.c.domain);
+      step(b, p, Q, P.k.key, act, P.c.domain, makeTx(lang));
       if (P.c.isGm) {
         // personagem GM: nunca morre (HP sempre cheio)
         p.hp = P.q.hp;
@@ -166,7 +167,7 @@ export async function battleAct(act: Act | { a: "next" } | { a: "end" }) {
             await db.insert(questProgress).values({ characterId: cid, questId: cq.id, progress: 1 }).onConflictDoUpdate({ target: [questProgress.characterId, questProgress.questId], set: { progress: sql`${questProgress.progress} + 1` } });
         const r = applyXp(lvl, xp, gain);
         lvl = r.level; xp = r.xp; lvUp = r.levelsGained;
-        b.res = [t("bt.defeated", { name: b.e.n, xp: f.n(gain), g })];
+        b.res = [t("bt.defeated", { name: monsterName(lang, b.e.n, b.e.ne), xp: f.n(gain), g })];
         if (Math.random() < Math.min(1, (kind === "mon" ? 0.5 : 1) * md)) {
           const z = pk(kind === "mon" ? w.dr : w.dg), n = Math.max(1, Math.round((kind === "boss" ? rn(2, 4) : rn(1, 2)) * md));
           await addElement(cid, z, n);

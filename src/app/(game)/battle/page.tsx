@@ -12,7 +12,8 @@ import { loadout4 } from "@/lib/game/loadout";
 import { pvpNorm } from "@/lib/game/pvp";
 import BattleScreen from "@/components/game/BattleScreen";
 import BattleIntro from "@/components/game/BattleIntro";
-import { mapLabel, realmName, realmTagline } from "@/i18n/content";
+import { mapLabel, monsterName, realmName, realmTagline, skillName } from "@/i18n/content";
+import { skillDesc } from "@/i18n/skills";
 import { subset } from "@/i18n";
 import { I18nProvider } from "@/i18n/client";
 import { getT } from "@/i18n/server";
@@ -36,9 +37,9 @@ export default async function Battle() {
     .map((i) => {
       const s = SKILLS[cls][i];
       return {
-        i, n: s.n, lv: s.lv, pa: s.pa, t: s.t, d: s.d,
+        i, n: skillName(lang, cls, i, s.n), lv: s.lv, pa: s.pa, t: s.t, d: skillDesc(lang, s),
         c: s.allMp ? 0 : s.c > 0 ? Math.max(1, Math.round((Q.mp * s.c) / 100)) : 0,
-        req: s.req ? { i: s.req.i, n: s.req.n, name: SKILLS[cls][s.req.i].n } : null,
+        req: s.req ? { i: s.req.i, n: s.req.n, name: skillName(lang, cls, s.req.i, SKILLS[cls][s.req.i].n) } : null,
       };
     });
   return (
@@ -48,7 +49,7 @@ export default async function Battle() {
           realm={st.dungeon}
           title={st.pvp ? t("intro.pvp") : st.dungeon ? (RM ? realmName(lang, RM.name) : t("play.realmDefault")) : st.ambush ? t("intro.ambush") : a.map ? mapLabel(lang, a.map.slug, a.map.name) : t("intro.hunt")}
           tagline={st.pvp ? t("intro.pvpTag") : st.dungeon ? t("intro.realmTag", { tagline: RM ? realmTagline(lang, RM.name, RM.tagline) : "" }) : st.ambush ? t("intro.ambushTag") : t("intro.huntTag")}
-          foe={t("intro.foe", { name: st.e.n, n: st.e.L })}
+          foe={t("intro.foe", { name: monsterName(lang, st.e.n, st.e.ne), n: st.e.L })}
         />
       )}
       <BattleScreen

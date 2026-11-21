@@ -437,6 +437,9 @@ export const aiMonsters = pgTable(
     lore: text("lore").notNull(),
     archetype: text("archetype").notNull(), // tank | glass | balanced
     skillName: text("skill_name"),
+    nameEn: text("name_en"), // versão em inglês (gerada junto, mesma validação); null = cai no português
+    loreEn: text("lore_en"),
+    skillNameEn: text("skill_name_en"),
     kind: text("kind").default("mon").notNull(), // mon | sub | boss (monstros criados no /admin podem ser sub-chefes e chefes)
     source: text("source").default("ia").notNull(), // ia | admin
     createdAt: timestamp("created_at").defaultNow().notNull(),

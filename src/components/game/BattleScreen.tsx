@@ -15,7 +15,7 @@ import { useStageBus, useStageEvents } from "@/components/stage/bus";
 import { markSlow, useStageMode } from "@/components/stage/support";
 import { useToast } from "@/components/ui";
 import { useT } from "@/i18n/client";
-import { realmName, realmTagline } from "@/i18n/content";
+import { monsterName, realmName, realmTagline, skillNameByPt } from "@/i18n/content";
 // cena 3D: chunk separado, carregado só aqui (e só se o aparelho aguentar); o 2D abaixo continua sendo o padrão
 const BattleStage = dynamic(() => import("@/components/stage/BattleStage"), { ssr: false });
 type It = { i: number; n: string; c: number; pa: number; lv: number; t: string; d: string; req?: { i: number; n: number; name: string } | null };
@@ -290,7 +290,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
         )}
         <Box cls={`left-2 ${top}`}>
           <div className="flex justify-between font-bold">
-            <span className="truncate">{b.e.n}</span>
+            <span className="truncate">{monsterName(lang, b.e.n, b.e.ne)}</span>
             <span>{t("battle.lvShort", { n: b.e.L })}</span>
           </div>
           <div className="flex items-center gap-1">
@@ -316,7 +316,7 @@ export default function BattleScreen({ b, p }: { b: BState; p: P }) {
           )}
           {b.sv && (
             <div className="flex items-center gap-1">
-              <GameIcon name="ghost" /> {b.sv.n} ({b.sv.t})
+              <GameIcon name="ghost" /> {skillNameByPt(lang, b.sv.n)} ({b.sv.t})
             </div>
           )}
           {b.dom && (

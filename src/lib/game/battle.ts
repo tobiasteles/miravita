@@ -9,6 +9,7 @@ import type { Vars } from "../../i18n/core";
 export type Stats = CStats;
 export type Mon = {
   n: string;
+  ne?: string; // nome em inglês (monstros gerados pela IA); o do bestiário vem de i18n/content/en.ts
   L: number;
   hp: number;
   mx: number;
@@ -331,7 +332,10 @@ const F = (b: BState, e: StageEvent) => {
 const elOf = (b: BState, cls: string) => b.rx?.cat ?? CLASS_DEFS[cls]?.color;
 // estados antigos (salvos antes da atualização) ganham os campos novos
 // próximo monstro da sequência: o painel de mensagens começa limpo (recompensas e aviso de nível do monstro anterior saem)
-export function advanceWave(b: BState, t: (k: Key, v?: Vars) => string = tFor("pt-BR")) {
+// tradutor do motor: mensagens e nomes (poderes/monstros) no idioma de quem joga. Padrão = português (testes e código antigo).
+export type Tx = { t: (k: Key, v?: Vars) => string; sk: (cls: string, i: number, pt: string) => string; skPt: (pt: string) => string; mon: (pt: string, ne?: string) => string };
+export const TX_PT: Tx = { t: tFor("pt-BR"), sk: (_c, _i, pt) => pt, skPt: (pt) => pt, mon: (pt) => pt };
+export function advanceWave(b: BState, t: (k: Key, v?: Vars) => string = tFor("pt-BR"), mon: (pt: string, ne?: string) => string = (n) => n) {
   b.e = b.q.shift()!;
   b.wave++;
   b.over = null;
@@ -340,7 +344,7 @@ export function advanceWave(b: BState, t: (k: Key, v?: Vars) => string = tFor("p
   b.res = [];
   b.lv = undefined;
   b.fx = [];
-  b.log = [b.endless ? t("bt.appearedEndless", { name: b.e.n, n: b.e.L }) : t("bt.stage", { w: b.wave, name: b.e.n, n: b.e.L })];
+  b.log = [b.endless ? t("bt.appearedEndless", { name: mon(b.e.n, b.e.ne), n: b.e.L }) : t("bt.stage", { w: b.wave, name: mon(b.e.n, b.e.ne), n: b.e.L })];
 }
 export function norm(b: BState, q: Stats) {
   b.pa ??= PA_MAX; b.used ??= {}; b.aegis ??= 0; b.aegisT ??= 0; b.eDef ??= 0; b.sifT ??= 0; b.charge ??= 0; b.et ??= 0;
@@ -376,12 +380,14 @@ export function step(
   cls: string,
   act: Act,
   dm?: DomainCfg | null,
+  tx: Tx = TX_PT,
 ) {
   if (b.over) return;
   norm(b, q);
   b.fx = []; // eventos de cena deste turno (ver fx-events.ts)
   b.fxSeq = (b.fxSeq ?? 0) + 1;
   const e = b.e;
+  const T = tx.t, en = tx.mon(e.n, e.ne); // mensagens e nome do inimigo no idioma do jogador
   // dano no inimigo (o fantasma pode ter uma Barreira Aegis que absorve primeiro)
   const hurtE = (d: number) => {
     if ((b.gshield ?? 0) > 0) {
@@ -420,18 +426,19 @@ export function step(
   // ───────── AÇÃO DO JOGADOR ─────────
   if (act.a === "skill") {
     const s: Sk | undefined = SKILLS[cls]?.[act.i];
-    if (!s) return L(b, "Poder inválido.");
-    if (p.lv < s.lv) return L(b, `${s.n} só no nível ${s.lv}.`);
-    if ((b.burn ?? 0) > 0 && act.i > 1) return L(b, "Sobrecarga: só os poderes Novato e Aprendiz funcionam.");
+    if (!s) return L(b, T("bt.invalidPower"));
+    const sn = tx.sk(cls, act.i, s.n); // nome do poder no idioma do jogador
+    if (p.lv < s.lv) return L(b, T("bt.skillLevel", { s: sn, n: s.lv }));
+    if ((b.burn ?? 0) > 0 && act.i > 1) return L(b, T("bt.overload"));
     if (s.req && (b.used![s.req.i] ?? 0) < s.req.n)
-      return L(b, `${s.n} exige usar ${SKILLS[cls][s.req.i].n} ${s.req.n}× nesta batalha (${b.used![s.req.i] ?? 0}/${s.req.n}).`);
+      return L(b, T("bt.needUse", { s: sn, r: tx.sk(cls, s.req.i, SKILLS[cls][s.req.i].n), n: s.req.n, a: b.used![s.req.i] ?? 0 }));
     const cost = s.c > 0 ? Math.max(1, Math.round((q.mp * s.c) / 100)) : 0; // custo de EA = % da EA máxima
-    if (s.allMp ? p.mp < q.mp * 0.25 : p.mp < cost) return L(b, `EA insuficiente para ${s.n}${s.allMp ? " (precisa de 25% da EA máxima)" : ""}.`);
-    if ((b.pa ?? 0) < s.pa) return L(b, `PA insuficiente (${s.pa} necessários). Use um poder mais leve para recuperar.`);
+    if (s.allMp ? p.mp < q.mp * 0.25 : p.mp < cost) return L(b, T(s.allMp ? "bt.noEaAll" : "bt.noEa", { s: sn }));
+    if ((b.pa ?? 0) < s.pa) return L(b, T("bt.noPa", { n: s.pa }));
     if (b.pStun) {
       b.pStun = false;
       b.t = (b.t ?? 0) + 1;
-      L(b, "Você está atordoado e perde o turno!");
+      L(b, T("bt.stunnedLoses"));
       return afterPlayer();
     }
     b.t = (b.t ?? 0) + 1;
@@ -445,26 +452,26 @@ export function step(
     else if (s.t === "sv") F(b, { k: "summon", el: elOf(b, cls) });
     if (s.t === "b") {
       b.buf = 3;
-      L(b, `${s.n}! Poderio ×1,5 por 3 turnos.`);
+      L(b, T("bt.buff", { s: sn }));
     } else if (s.t === "e") {
       b.ev = s.x ?? 3;
       if ((s.x ?? 3) > 3) b.sifT = s.x ?? 4;
-      L(b, `${s.n}: Véu Intangível por ${b.ev} turnos${b.sifT ? " e Sifão Vital" : ""}.`);
+      L(b, T(b.sifT ? "bt.veilSif" : "bt.veil", { s: sn, n: b.ev ?? 0 }));
     } else if (s.t === "ag") {
       b.aegis = Math.round(q.hp * 0.3);
       b.aegisT = 4;
-      L(b, `${s.n}: Barreira Aegis de ${b.aegis} por 4 turnos.`);
+      L(b, T("bt.aegisCast", { s: sn, n: b.aegis ?? 0 }));
     } else if (s.t === "sv") {
       b.sv = { n: s.n, p: e.pvp ? pvpP(s.p) : s.p, t: 3 };
-      L(b, `Você invocou ${s.n}!`);
+      L(b, T("bt.summoned", { s: sn }));
     } else {
       const m = clamp(act.m, 1, 2), perfect = m >= 1.99;
       const hitP = clamp((0.95 * q.foco) / (q.foco + 0.35 * (e.refl ?? 0)), 0.55, 0.98) * ((b.gveil ?? 0) > 0 ? 0.55 : 1); // Véu do fantasma: -45% de acerto
       if (e.pvp && q.main === "arc" && Math.random() * 100 < e.pvp.evM * 0.5) {
-        L(b, `${s.n}: a Evasão Mágica de ${e.n} dissipou o feitiço!`);
+        L(b, T("bt.foeMagicEvade", { s: sn, e: en }));
         F(b, { k: "dodge", from: "me", to: "foe" });
       } else if (!perfect && Math.random() > hitP) {
-        L(b, `${s.n}: ${e.n} esquivou! (Foco ${Math.round(hitP * 100)}%)`);
+        L(b, T("bt.foeDodged", { s: sn, e: en, n: Math.round(hitP * 100) }));
         F(b, { k: "dodge", from: "me", to: "foe" });
       } else {
         const pw0 = s.t === "nuke" ? s.p * (1 + 0.6 * (spent / q.mp)) : s.p, pw = e.pvp ? pvpP(pw0) : pw0;
@@ -485,21 +492,21 @@ export function step(
         const pen = Math.max(0, (e.rs ?? 0) - q.pen / 100);
         if (s.t === "st" && Math.random() < 0.4 * (1 - pen)) { b.skip = true; b.charge = 0; }
         rxHit(b, p, q, e);
-        L(b, `${s.n}: ${d} de dano${perfect ? " ⚡PERFEITO" : m > 1 ? " ✔ bom timing" : ""}${cr ? " 💥RUPTURA" : ""}${b.skip && s.t === "st" ? " · inimigo atordoado!" : ""}`);
+        L(b, T("bt.dmg", { s: sn, d }) + (perfect ? T("bt.tagPerfect") : m > 1 ? T("bt.tagGood") : "") + (cr ? T("bt.tagRupture") : "") + (b.skip && s.t === "st" ? T("bt.tagFoeStunned") : ""));
         F(b, { k: cr ? "crit" : "hit", from: "me", to: "foe", d, el: elOf(b, cls) });
       }
     }
   } else if (act.a === "summon") {
-    return L(b, "As invocações agora são poderes: equipe-as na Academia."); // compatibilidade
+    return L(b, T("bt.summonsMoved")); // compatibilidade
   } else if (act.a === "potion") {
     b.t = (b.t ?? 0) + 1;
     if (act.k === "ea") {
       p.mp = Math.min(q.mp, p.mp + Math.round(q.mp * 0.4));
-      L(b, "Poção de EA: +40% EA.");
+      L(b, T("bt.potEa"));
       F(b, { k: "skill", from: "me", el: "#38bdf8" });
     } else {
       p.hp = Math.min(q.hp, p.hp + Math.round(q.hp * 0.4));
-      L(b, "Poção de HP: +40% HP.");
+      L(b, T("bt.potHp"));
       F(b, { k: "heal", to: "me" });
     }
   } else if (act.a === "domain") {
@@ -507,23 +514,23 @@ export function step(
       f = dm ? domFx(cls, dm) : null,
       need = f ? Math.round(q.mp * f.cost) : 0;
     if (!D || !f || p.lv < D.lv || b.domUsed || b.dom || (b.burn ?? 0) > 0)
-      return L(b, "Despertar indisponível (não forjado, já usado, ativo ou em Sobrecarga).");
-    if (p.mp < need) return L(b, `Energia Arcana insuficiente (${need} EA).`);
+      return L(b, T("bt.domainNA"));
+    if (p.mp < need) return L(b, T("bt.noEaDomain", { n: need }));
     b.t = (b.t ?? 0) + 1;
     p.mp -= need;
     b.dom = { t: 3, n: f.n, p: f.p, foe: f.foe, heal: f.heal, ea: f.ea, stun: f.stun, self: f.self, k: dm?.aspect };
     b.domUsed = true;
-    L(b, `🌀 ${f.shout || DOMAIN_TERM + "!"}`);
-    L(b, `${DOMAIN_TERM}: ${f.n} [${f.aspect}]`);
+    L(b, `🌀 ${f.shout || T("term.domain") + "!"}`);
+    L(b, `${T("term.domain")}: ${f.n} [${f.aspect}]`);
     F(b, { k: "skill", from: "me", el: elOf(b, cls) });
   } else if (act.a === "flee") {
     b.t = (b.t ?? 0) + 1;
     if (Math.random() < (e.boss ? 0.25 : 0.6)) {
       b.over = "flee";
       F(b, { k: "flee" });
-      return L(b, "Você fugiu!");
+      return L(b, T("bt.fled"));
     }
-    L(b, "Falha ao fugir!");
+    L(b, T("bt.fleeFail"));
   }
   return afterPlayer();
 
@@ -540,28 +547,29 @@ export function step(
     else if (!(b.gbuf ?? 0) && has("b") && Math.random() < 0.6) a = has("b");
     else a = Math.random() < 0.7 ? dmg[0] : dmg[Math.floor(Math.random() * Math.min(2, dmg.length))] ?? dmg[0];
     if (!a) a = { n: "Golpe básico", t: "d", p: 0.8, pa: 0, c: 0, cr: 0 };
+    const an = a.n === "Golpe básico" ? T("bt.basicStrike") : tx.skPt(a.n); // poderes do fantasma guardam o nome em português
     b.gpa! -= a.pa;
     b.gmp! -= a.c;
     if (a.t === "ag") {
       b.gshield = Math.round(e.mx * 0.3);
       b.gshieldT = 4;
-      L(b, `${e.n} usa ${a.n}: Barreira Aegis!`);
+      L(b, T("bt.foeAegis", { e: en, a: an }));
       F(b, { k: "skill", from: "foe", el: "#67e8f9" });
     } else if (a.t === "e") {
       b.gveil = 3;
-      L(b, `${e.n} usa ${a.n}: fica difícil de acertar!`);
+      L(b, T("bt.foeVeil", { e: en, a: an }));
       F(b, { k: "skill", from: "foe", el: "#a78bfa" });
     } else if (a.t === "b") {
       b.gbuf = 3;
-      L(b, `${e.n} usa ${a.n}: Poderio ×1,5!`);
+      L(b, T("bt.foeBuff", { e: en, a: an }));
       F(b, { k: "skill", from: "foe", el: "#fbbf24" });
     } else {
       const dodge = clamp((0.45 * q.refl) / (q.refl + (e.acc ?? 40)), 0, 0.4) + 0.03;
       if (((b.ev ?? 0) > 0 && Math.random() < 0.6) || Math.random() < dodge) {
-        L(b, `Você esquivou de ${a.n}!`);
+        L(b, T("bt.youDodgedA", { a: an }));
         F(b, { k: "dodge", from: "foe", to: "me" });
       } else if (e.dt === "arc" && Math.random() * 100 < q.evM * 0.5) {
-        L(b, `Sua Evasão Mágica dissipou ${a.n}!`);
+        L(b, T("bt.youMagicEvadeA", { a: an }));
         F(b, { k: "dodge", from: "foe", to: "me" });
       } else {
         const mult = pvpP(a.p) * (a.t === "sv" ? 3 : a.t === "dot" ? 1.9 : 1);
@@ -574,17 +582,17 @@ export function step(
           const ab = Math.min(b.aegis!, d);
           b.aegis! -= ab;
           d -= ab;
-          L(b, `Barreira Aegis absorveu ${ab}.`);
+          L(b, T("bt.aegisAbsorbed", { n: ab }));
         }
         p.hp -= d;
-        L(b, `${e.n} usa ${a.n}: ${d} de dano${cr ? " 💥RUPTURA" : ""}`);
+        L(b, T("bt.foeUseDmg", { e: en, a: an, d }) + (cr ? T("bt.tagRupture") : ""));
         F(b, { k: cr ? "crit" : "hit", from: "foe", to: "me", d, el: cr ? "#f43f5e" : undefined });
         if (g.sifV) e.hp = Math.min(e.mx, e.hp + Math.round((d * g.sifV) / 100)); // Sifão Vital do fantasma
         const ret = q.ret + ((b.aegisT ?? 0) > 0 ? 15 : 0);
         if (ret > 0) hurtE(Math.round((full * ret) / 100));
         if (a.t === "st" && p.hp > 0 && Math.random() < 0.35 && Math.random() * 100 >= q.ten) {
           b.pStun = true;
-          L(b, "Você foi atordoado! Perderá o próximo turno.");
+          L(b, T("bt.youStunned"));
         }
       }
     }
@@ -599,7 +607,7 @@ export function step(
       // tempo esgotado: vence quem tem mais % de vida
       b.over = p.hp / q.hp >= e.hp / e.mx ? "win" : "lose";
       F(b, { k: b.over === "win" ? "win" : "lose" });
-      L(b, "Tempo esgotado! Vence quem tem mais vida restante.");
+      L(b, T("bt.timeUp"));
     }
   }
 
@@ -610,7 +618,7 @@ export function step(
       const d = Math.max(1, Math.round(q.atk * b.sv.p * (1 + q.sv) * rf(0.9, 1.1) * defF(eDefOf(b, q), e.L) * armor(b)));
       hurtE(d);
       b.sv.t--;
-      L(b, `${b.sv.n} ataca: ${d}`);
+      L(b, T("bt.svAttack", { n: tx.skPt(b.sv.n), d }));
       F(b, { k: "hit", from: "summon", to: "foe", d, el: elOf(b, cls) });
       if (b.sv.t <= 0) b.sv = null;
       if (fin()) return;
@@ -619,7 +627,7 @@ export function step(
       const dd = Math.max(1, Math.round(q.atk * b.dot.p * rf(0.9, 1.1) * defF(eDefOf(b, q), e.L) * armor(b)));
       hurtE(dd);
       b.dot.t--;
-      L(b, `🔥 Dano contínuo: ${dd}`);
+      L(b, T("bt.dot", { n: dd }));
       F(b, { k: "hit", from: "foe", to: "foe", d: dd, el: "#f97316" });
       if (b.dot.t <= 0) b.dot = null;
       if (fin()) return;
@@ -631,7 +639,7 @@ export function step(
       const dd = Math.round(q.atk * dmn.p * (e.boss ? 0.75 : 1) * rf(0.95, 1.05));
       hurtE(dd);
       dmn.t--;
-      L(b, `🌀 ${dmn.n}: acerto garantido, ${dd} de dano`);
+      L(b, T("bt.domainHit", { n: dmn.n, d: dd }));
       F(b, { k: "crit", from: "me", to: "foe", d: dd, el: elOf(b, cls) });
       if (dmn.heal) p.hp = Math.min(q.hp, p.hp + Math.round(q.hp * dmn.heal));
       if (dmn.ea) p.mp = Math.min(q.mp, p.mp + Math.round(q.mp * dmn.ea));
@@ -640,10 +648,10 @@ export function step(
       if (dmn.t <= 0) {
         b.dom = null;
         b.burn = 3;
-        L(b, "O Despertar termina. Sobrecarga (2 turnos).");
+        L(b, T("bt.domainEnd"));
       }
       if (dmn.stun && Math.random() < dmn.stun * (1 - Math.max(0, (e.rs ?? 0) - q.pen / 100))) {
-        L(b, `${e.n} está paralisado pelo Despertar!`);
+        L(b, T("bt.foeParalyzed", { e: en }));
         b.charge = 0;
         return endTurn();
       }
@@ -652,7 +660,7 @@ export function step(
     if (b.skip) {
       b.skip = false;
       b.charge = 0;
-      L(b, `${e.n} está atordoado!`);
+      L(b, T("bt.foeStunned", { e: en }));
       return endTurn();
     }
     if (e.pvp) return ghostTurn();
@@ -661,7 +669,7 @@ export function step(
     b.et = (b.et ?? 0) + 1;
     if (pats.includes("carga") && !b.charge && b.et % (enraged ? 3 : 4) === 0) {
       b.charge = 1;
-      L(b, `⚠ ${e.n} concentra energia para um golpe DEVASTADOR! (atordoe, use Véu ou Barreira)`);
+      L(b, T("bt.charge", { e: en }));
       return endTurn();
     }
     const charged = b.charge === 1;
@@ -669,12 +677,12 @@ export function step(
     const acc = e.acc ?? 40,
       dodge = clamp((0.45 * q.refl) / (q.refl + acc), 0, 0.4) + 0.03;
     if (((b.ev ?? 0) > 0 && Math.random() < 0.6) || (!charged && Math.random() < dodge)) {
-      L(b, "Você esquivou do ataque!");
+      L(b, T("bt.youDodged"));
       F(b, { k: "dodge", from: "foe", to: "me" });
       return endTurn();
     }
     if (e.dt === "arc" && Math.random() * 100 < q.evM * 0.5) {
-      L(b, "Sua Evasão Mágica dissipou o feitiço!");
+      L(b, T("bt.youMagicEvade"));
       F(b, { k: "dodge", from: "foe", to: "me" });
       return endTurn();
     }
@@ -686,23 +694,23 @@ export function step(
       const ab = Math.min(b.aegis!, d);
       b.aegis! -= ab;
       d -= ab;
-      L(b, `Barreira Aegis absorveu ${ab}.`);
+      L(b, T("bt.aegisAbsorbed", { n: ab }));
     }
     p.hp -= d;
-    L(b, `${charged ? "💢 GOLPE DEVASTADOR! " : ""}${e.n} causa ${d} de dano.`);
+    L(b, (charged ? T("bt.devastating") : "") + T("bt.foeHit", { e: en, d }));
     F(b, { k: charged ? "crit" : "hit", from: "foe", to: "me", d, el: charged ? "#f43f5e" : undefined });
     const ret = q.ret + ((b.aegisT ?? 0) > 0 ? 15 : 0);
     if (ret > 0) {
       const r = Math.round((full * ret) / 100);
       e.hp -= r;
-      L(b, `Retaliação: ${r} de dano refletido.`);
+      L(b, T("bt.retaliation", { n: r }));
       if (fin()) return;
     }
     if (p.hp > 0 && e.boss && d > 0 && Math.random() < 0.2) {
-      if (Math.random() * 100 < q.ten) L(b, "Sua Tenacidade resistiu ao atordoamento!");
+      if (Math.random() * 100 < q.ten) L(b, T("bt.tenacity"));
       else {
         b.pStun = true;
-        L(b, "Você foi atordoado! Perderá o próximo turno.");
+        L(b, T("bt.youStunned"));
       }
     }
     if (p.hp <= 0) {

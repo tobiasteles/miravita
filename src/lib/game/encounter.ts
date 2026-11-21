@@ -15,7 +15,8 @@ export type SpawnKind = "mon" | "sub" | "boss";
 // Monstros comuns: 30% vêm do bestiário (IA + os que você criou no /admin); se existir monstro SEU no mapa, ele entra mais (40%).
 // Sub-chefes e chefes: se você criou algum para o mapa, ele é usado em 70% das vezes.
 export async function spawn(slug: string, pl: number, kind: SpawnKind, realm: boolean, heat = 0): Promise<Mon> {
-  let rows: { name: string; archetype: string; kind: string; source: string }[] = [];
+  let rows: { name: string; nameEn?: string | null; archetype: string; kind: string; source: string }[] = [];
+  let ne: string | undefined; // nome em inglês, se o monstro veio do banco (IA/admin)
   try {
     rows = await db.select().from(aiMonsters).where(eq(aiMonsters.mapSlug, slug)).limit(80);
   } catch {
@@ -26,13 +27,17 @@ export async function spawn(slug: string, pl: number, kind: SpawnKind, realm: bo
   if (own.length && (kind === "mon" ? Math.random() < 0.4 : Math.random() < 0.7)) {
     const r = pk(own), base = spawnFor(slug, pl, kind);
     m = mkMonster(r.name, base.L, kind);
+    ne = r.nameEn ?? undefined;
     if (kind === "mon") m = withArch(m, r.archetype);
   } else if (kind === "mon" && Math.random() < 0.3 && rows.some((r) => r.kind === "mon")) {
     const r = pk(rows.filter((r) => r.kind === "mon"));
+    ne = r.nameEn ?? undefined;
     m = withArch(mkMonster(r.name, spawnFor(slug, pl, "mon").L, "mon"), r.archetype);
   } else m = spawnFor(slug, pl, kind);
   if (realm) m = temper(m, 1.3, 1.2);
-  return heat ? heatUp(m, heat) : m;
+  const out = heat ? heatUp(m, heat) : m;
+  if (ne) out.ne = ne;
+  return out;
 }
 export const blankState = (e: Mon, q: Mon[], slug: string, extra: Partial<BState> = {}): BState => ({
   e, q, wave: 1, dungeon: false, mapSlug: slug, buf: 0, cu: 0, sv: null, log: [], over: null, res: [],
