@@ -4,7 +4,7 @@ export type Item =
   | { g: "gear"; z: number; k: "arma" | "armadura" }
   | { g: "cons"; k: "hp" | "ea" | "tp"; n: number }
   | { g: "mat"; z: number; n: number };
-export type Reward = { xpB: number; gold: number; items?: Item[] };
+export type Reward = { xpB: number; gold: number; items?: Item[]; learn?: string[] }; // learn = ids de reações do Caderno de Descobertas
 export const ZN: Record<number, string> = {
   26: "Ferro",
   29: "Cobre",
@@ -55,7 +55,7 @@ export const STORY = [
     s: "Você é o último da turma da Academia Miravita: despertou tarde, a sua Aura mal acende e as aulas de campo servem para carregar a mochila dos colegas. Hoje, na Planície de Aurora, até um monstro fraco é um desafio. Mostre à Mestra Lúmen que você consegue ficar de pé.",
     h: "Uma Fenda dupla se abre onde não deveria existir nenhuma.",
     obj: { t: "kill", slug: "planicie-de-aurora", n: 5 },
-    rw: { xpB: 10, gold: 60, items: [{ g: "cons", k: "hp", n: 3 }] },
+    rw: { learn: ["hcl"], xpB: 10, gold: 60, items: [{ g: "cons", k: "hp", n: 3 }] },
   },
   {
     id: "f2",
@@ -66,6 +66,7 @@ export const STORY = [
     h: "Ao acordar, uma janela de luz paira sobre a sua cama: “Missão Diária disponível”.",
     obj: { t: "portal", slug: "planicie-de-aurora", n: 1 },
     rw: {
+      learn: ["naoh"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 16,
       gold: 100,
       items: [{ g: "cons", k: "tp", n: 2 }, W(26, "armadura")],
@@ -80,6 +81,7 @@ export const STORY = [
     h: "Os examinadores encontram uma marca estranha no seu braço.",
     obj: { t: "kill", slug: "floresta-sussurrante", n: 20 },
     rw: {
+      learn: ["neutral"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 22,
       gold: 160,
       items: [W(29, "arma"), { g: "cons", k: "ea", n: 3 }],
@@ -94,6 +96,7 @@ export const STORY = [
     h: "Quem passa no exame ganha o Grau Médio, e um rival que não aceita perder.",
     obj: { t: "portal", slug: "deserto-cinzento", n: 1 },
     rw: {
+      learn: ["amonia"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 35,
       gold: 400,
       items: [W(22, "arma"), { g: "cons", k: "hp", n: 5 }],
@@ -108,6 +111,7 @@ export const STORY = [
     h: "O Torneio das Escolas começa, e Kael quer derrotar você diante de todos.",
     obj: { t: "kill", slug: "deserto-cinzento", n: 40 },
     rw: {
+      learn: ["carbono"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 40,
       gold: 700,
       items: [W(47, "armadura"), { g: "cons", k: "tp", n: 2 }],
@@ -121,7 +125,7 @@ export const STORY = [
     s: "As escolas rivais se enfrentam na Montanha de Ferro, e o duelo com Kael divide a plateia. No meio do combate, uma Fenda invade o torneio e solta monstros nas arquibancadas. Rivais viram aliados para proteger quem não sabe lutar.",
     h: "Entre os escombros, alguém vê Lúmen conversando com um vulto encapuzado.",
     obj: { t: "kill", slug: "montanha-de-ferro", n: 30 },
-    rw: { xpB: 45, gold: 900, items: [W(79, "arma")] },
+    rw: { learn: ["glicose"], xpB: 45, gold: 900, items: [W(79, "arma")] },
   },
   {
     id: "m3",
@@ -132,6 +136,7 @@ export const STORY = [
     h: "Todas as pistas apontam para o Pântano Sombrio.",
     obj: { t: "portal", slug: "montanha-de-ferro", n: 2 },
     rw: {
+      learn: ["h2so4"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 60,
       gold: 1500,
       items: [W(78, "arma"), { g: "mat", z: 79, n: 5 }],
@@ -146,6 +151,7 @@ export const STORY = [
     h: "A Academia promete uma promoção histórica, mas esconde um diário.",
     obj: { t: "kill", slug: "pantano-radioativo", n: 50 },
     rw: {
+      learn: ["kno3"], // missão que ensina uma reação do Caderno de Descobertas
       xpB: 70,
       gold: 2000,
       items: [W(78, "armadura"), { g: "cons", k: "ea", n: 5 }],

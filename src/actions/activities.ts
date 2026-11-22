@@ -11,7 +11,7 @@ import { track } from "@/lib/rewards";
 import { CONS, addCons } from "@/lib/consumables";
 import { addElement, takeElement, elementQty } from "@/lib/equip";
 import { addStone } from "@/lib/stone";
-import { EXP, chargesNow, RECIPES } from "@/lib/game/activities";
+import { EXP, chargesNow } from "@/lib/game/activities";
 import { activeEvents, evMult } from "@/lib/game/live";
 
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1), rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)), pk = <T,>(a: readonly T[]) => a[rn(0, a.length - 1)];
@@ -83,16 +83,7 @@ export async function synthesize(fd: FormData) {
       const out = ZBYPOWER[Math.min(ZBYPOWER.length - 1, i + rn(3, 14))], n = Math.random() < bonus - 1 ? 2 : 1; // Elemental: 50% de chance de render 2
       await addElement(a.c.id, out, n);
       rep.push(`Transmutação: 5× ${nm(z)} → ${n}× ${nm(out)}`);
-    } else {
-      const rc = RECIPES.find((r) => r.id === id);
-      if (!rc) return;
-      for (const [z, q] of rc.inp) { const have = await elementQty(a.c.id, z); if (!have || have.quantity < q) return; }
-      for (const [z, q] of rc.inp) await takeElement(a.c.id, z, q);
-      const n = Math.round(rc.out.n * bonus);
-      if (rc.out.cons === "tp") await addStone(a.c.id, n);
-      else await addCons(a.c.id, CONS[rc.out.cons].name, n);
-      rep.push(`${rc.n}: ${rc.d.replace(/^\d+/, String(n))}`);
-    }
+    } else return; // as reações do laboratório estão em actions/lab.ts
     await save(a.c.id, { ...act, last: rep });
     revalidatePath("/atividades");
   });

@@ -217,3 +217,12 @@ export const monstersEn: Record<string, string> = {
   "Soberano Ignotus": "Sovereign Ignotus",
   "Dragão do Vazio": "Void Dragon",
 };
+
+// compostos do laboratório (fórmula → nome)
+export const compoundsEn: Record<string, string> = {
+  H2O: "Water", NaCl: "Sodium Chloride", SiO2: "Silicon Dioxide (Quartz)", CO2: "Carbon Dioxide", HCl: "Hydrochloric Acid", NaOH: "Sodium Hydroxide",
+  KOH: "Potassium Hydroxide", NH3: "Ammonia", SO2: "Sulfur Dioxide", H2SO4: "Sulfuric Acid", BaO2: "Barium Peroxide", H2O2: "Hydrogen Peroxide",
+  BaSO4: "Barium Sulfate", HNO3: "Nitric Acid", KNO3: "Potassium Nitrate (Saltpeter)", C6H12O6: "Glucose", C2H5OH: "Ethanol", CH4: "Methane",
+  CaO: "Calcium Oxide (Quicklime)", "Ca(OH)2": "Calcium Hydroxide", CaCO3: "Calcium Carbonate", Na2CO3: "Sodium Carbonate", Na2SiO3: "Glass (Sodium Silicate)",
+  Fe2O3: "Iron Oxide (Rust)", Al2O3: "Alumina",
+};

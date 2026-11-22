@@ -232,6 +232,7 @@ export const characters = pgTable(
         exp?: { tier: number; slug: string; endsAt: number } | null;
         dig?: { charges: number; at: number };
         last?: string[]; // relatório da última atividade (expedição, escavação, síntese)
+        notebook?: string[]; // Caderno de Descobertas: ids das reações aprendidas (por experimento ou missão), além das iniciais
       }>()
       .default({})
       .notNull(),

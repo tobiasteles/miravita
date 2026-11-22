@@ -4,6 +4,7 @@ import { applyXp, monsterXp } from "@/lib/game/xp"; import { addCons, CONS } fro
 import { STORY, today, type Reward } from "@/lib/game/story";
 import { craftStats, material, nearestCraftable } from "@/lib/game/materials";
 import { ELEMENT_BY_Z } from "@/lib/game/elements";
+import { learnRecipes } from "@/lib/lab";
 
 // ───── progresso das missões (capítulos e diárias) ─────
 export async function bump(cid: string, id: string, n = 1) {
@@ -33,5 +34,6 @@ async function addGear(cid: string, z0: number, kind: "arma" | "armadura") { // 
 export async function giveReward(c: { id: string; level: number; xp: number | string; gold: number | string }, rw: Reward, m = 1) {
   const gain = Math.round(monsterXp(Math.min(200, c.level + 4)) * rw.xpB * Number(process.env.XP_MULTIPLIER ?? 1) * m), r = applyXp(c.level, Number(c.xp), gain);
   await db.update(characters).set({ level: r.level, xp: r.xp, gold: Number(c.gold) + Math.round((rw.gold + c.level * 10) * m) }).where(eq(characters.id, c.id));
+  if (rw.learn?.length) await learnRecipes(c.id, rw.learn); // missão que ensina reações do Caderno
   for (const it of rw.items ?? []) { if (it.g === "gear") await addGear(c.id, it.z, it.k); else if (it.g === "cons") await addCons(c.id, CONS[it.k].name, it.n); else await addMaterial(c.id, it.z, it.n); }
 }

@@ -111,3 +111,11 @@ test("nome de poder pelo nome em português (invocados e poderes do fantasma)", 
   assert.equal(skillNameByPt("pt-BR", "Golem de Pedra"), "Golem de Pedra");
   assert.equal(skillNameByPt("en", "Poder Desconhecido"), "Poder Desconhecido");
 });
+
+import { compoundsEn } from "../src/i18n/content/en";
+import { COMPOUND_PT as CPT, DANGERS as DNG, COMPOUNDS as CMP } from "../src/lib/game/reactions";
+test("laboratório: todo composto tem nome em inglês e todo acidente tem explicação nos dois idiomas", () => {
+  for (const f of Object.keys(CPT)) assert.ok(compoundsEn[f], f);
+  for (const f of CMP) assert.ok(CPT[f] && compoundsEn[f], f);
+  for (const d of DNG) { assert.ok(d.why in ptBR && d.why in en, d.why); assert.ok(d.why.startsWith("chem.d.")); }
+});

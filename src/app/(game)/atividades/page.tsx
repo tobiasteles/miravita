@@ -5,7 +5,8 @@ import { db } from "@/db";
 import { inventory, items, elements } from "@/db/schema";
 import { getActiveCharacter } from "@/lib/session";
 import { startExpedition, claimExpedition, dig, synthesize, setInfuse } from "@/actions/activities";
-import { EXP, DIG_MAX, DIG_EVERY_MS, chargesNow, RECIPES } from "@/lib/game/activities";
+import { EXP, DIG_MAX, DIG_EVERY_MS, chargesNow } from "@/lib/game/activities";
+import Lab from "@/components/game/Lab";
 import { RX_INFO } from "@/lib/game/battle";
 import RealmCountdown from "@/components/game/RealmCountdown";
 import GameIcon from "@/components/game/GameIcon";
@@ -72,16 +73,7 @@ export default async function Atividades() {
       {/* ───── 3. LABORATÓRIO ───── */}
       <section className={sec}>
         <h2 className="flex items-center gap-2 font-bold text-emerald-300"><GameIcon name="flask" /> Laboratório de Síntese{c.classKey === "quimica" && <span className="text-xs font-normal text-emerald-200">(Elemental: +50% de rendimento)</span>}</h2>
-        {RECIPES.map((r) => {
-          const ok = r.inp.every(([z, q]) => have(z) >= q);
-          return (
-            <form key={r.id} action={synthesize} className="flex items-center gap-2 rounded-lg border border-violet-800 p-2 text-sm">
-              <input type="hidden" name="id" value={r.id} />
-              <div className="flex-1"><b>{r.n}</b><div className="text-xs text-violet-300">{r.inp.map(([z, q]) => `${q}× ${mats.find((m) => m.z === z)?.sym ?? "Z" + z}`).join(" + ")} → {r.d}</div></div>
-              <button disabled={!ok} className={btn}>Sintetizar</button>
-            </form>
-          );
-        })}
+        <Lab cid={c.id} activity={act} />
         <form action={synthesize} className="flex items-center gap-2 rounded-lg border border-violet-800 p-2 text-sm">
           <input type="hidden" name="id" value="transmuta" />
           <div className="flex-1"><b>Transmutação</b><div className="text-xs text-violet-300">5 unidades de um elemento → 1 elemento mais raro</div></div>

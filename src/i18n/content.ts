@@ -1,7 +1,7 @@
 import { CLASS_NAME, CLASS_DEFS } from "@/lib/game/classes";
 import { SKILLS } from "@/lib/game/classdata";
 import type { Lang } from "./core";
-import { biomesEn, blocksEn, classesEn, elementsEn, mapsEn, monstersEn, realmsEn, skillsEn, spotsEn, tiersEn, traitsEn } from "./content/en";
+import { biomesEn, blocksEn, classesEn, compoundsEn, elementsEn, mapsEn, monstersEn, realmsEn, skillsEn, spotsEn, tiersEn, traitsEn } from "./content/en";
 
 // Conteúdo do jogo por idioma. pt-BR vem do próprio código/banco; en vem de content/en.ts (fallback: pt-BR).
 export const className = (lang: Lang, key: string) => (lang === "en" ? classesEn[key]?.name : undefined) ?? CLASS_NAME[key] ?? key;
@@ -28,3 +28,4 @@ export const skillName = (lang: Lang, cls: string, i: number, pt: string) => (la
 const SK_BY_PT: Record<string, [string, number]> = {};
 for (const cls of Object.keys(skillsEn)) SKILLS[cls]?.forEach((s, i) => { SK_BY_PT[s.n] = [cls, i]; }); // só as 10 classes reais (SKILLS também guarda apelidos das antigas)
 export const skillNameByPt = (lang: Lang, pt: string) => { const r = SK_BY_PT[pt]; return r ? skillName(lang, r[0], r[1], pt) : pt; };
+export const compoundName = (lang: Lang, f: string, pt: string) => (lang === "en" ? compoundsEn[f] : undefined) ?? pt;
