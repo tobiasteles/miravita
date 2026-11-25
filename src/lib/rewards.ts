@@ -5,6 +5,8 @@ import { STORY, today, type Reward } from "@/lib/game/story";
 import { craftStats, material, nearestCraftable } from "@/lib/game/materials";
 import { ELEMENT_BY_Z } from "@/lib/game/elements";
 import { learnRecipes } from "@/lib/lab";
+import { isHazardous } from "@/lib/game/hazard";
+import { addHazardous } from "@/lib/hazard";
 
 // ───── progresso das missões (capítulos e diárias) ─────
 export async function bump(cid: string, id: string, n = 1) {
@@ -18,6 +20,7 @@ export async function track(cid: string, kind: "kill" | "portal" | "gather", slu
 
 // ───── entrega de recompensas ─────
 async function addMaterial(cid: string, z: number, n: number) {
+  if (isHazardous(z)) { await addHazardous(cid, z, n); return; } // radioativo/tóxico: limite de carga + Contenção
   const [it] = await db.select({ id: items.id }).from(items).where(and(eq(items.elementAtomicNumber, z), eq(items.type, "material"))).limit(1); if (!it) return;
   const [ex] = await db.select().from(inventory).where(and(eq(inventory.characterId, cid), eq(inventory.itemId, it.id))).limit(1);
   if (ex) await db.update(inventory).set({ quantity: ex.quantity + n }).where(eq(inventory.id, ex.id)); else await db.insert(inventory).values({ characterId: cid, itemId: it.id, quantity: n });

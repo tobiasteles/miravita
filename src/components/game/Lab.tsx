@@ -8,12 +8,13 @@ import { known, ownedCompounds } from "@/lib/lab";
 import { compoundName, elementName } from "@/i18n/content";
 import { getT } from "@/i18n/server";
 import { CONS } from "@/lib/consumables";
+import Containment from "@/components/game/Containment";
 
 const btn = "rounded bg-violet-600 px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40";
 const card = "rounded-lg border border-violet-800 p-2 text-sm";
 
 // Caderno de Descobertas + Bancada de Experimentos + Compostos. Tudo renderizado no servidor; as ações validam de novo.
-export default async function Lab({ cid, activity }: { cid: string; activity: { notebook?: string[] } | null }) {
+export default async function Lab({ cid, activity }: { cid: string; activity: Parameters<typeof Containment>[0]["activity"] & { notebook?: string[] } }) {
   const { lang, t } = await getT();
   const mats = await db.select({ z: items.elementAtomicNumber, qty: inventory.quantity }).from(inventory).innerJoin(items, eq(inventory.itemId, items.id))
     .where(and(eq(inventory.characterId, cid), eq(items.type, "material"), gt(inventory.quantity, 0)));
@@ -31,6 +32,7 @@ export default async function Lab({ cid, activity }: { cid: string; activity: { 
   );
   return (
     <div className="space-y-3">
+      <Containment cid={cid} activity={activity} />
       <div>
         <h3 className="mb-1 text-sm font-semibold text-emerald-200">{t("lab.notebook", { n: kn.size, total: PARSED.length })}</h3>
         <div className="space-y-1">

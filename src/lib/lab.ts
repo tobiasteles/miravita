@@ -1,7 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { characters, inventory, items } from "@/db/schema";
-import { addElement, elementQty, takeElement } from "@/lib/equip";
+import { addElement } from "@/lib/equip";
+import { elemQty, elemTake, saveActivity } from "@/lib/hazard";
 import { BY_ID, COMPOUND_PT, compoundValue, needs, pretty, SYMBOLS, yields, STARTERS, type Parsed } from "@/lib/game/reactions";
 
 // compostos do laboratório são itens "consumivel" com o nome "Nome (Fórmula)"; o item é criado na primeira vez que alguém produz o composto
@@ -32,7 +33,7 @@ export async function takeCompound(cid: string, f: string, n: number) {
 }
 // quantidade de uma espécie (elemento ou composto) no inventário
 export async function speciesQty(cid: string, sp: { el: number | null; sp: string }) {
-  return sp.el != null ? (await elementQty(cid, sp.el))?.quantity ?? 0 : compoundQty(cid, sp.sp);
+  return sp.el != null ? elemQty(cid, sp.el) : compoundQty(cid, sp.sp);
 }
 export const hasAll = async (cid: string, p: Parsed) => {
   for (const n of needs(p)) if ((await speciesQty(cid, n)) < n.q) return false;
@@ -41,7 +42,7 @@ export const hasAll = async (cid: string, p: Parsed) => {
 // executa a reação: gasta os reagentes (o catalisador só precisa existir) e guarda os produtos (gás liberado se perde)
 export async function perform(cid: string, p: Parsed, bonus = 1): Promise<{ sp: string; q: number }[] | null> {
   if (!(await hasAll(cid, p))) return null;
-  for (const n of needs(p)) if (!(n.el != null ? await takeElement(cid, n.el, n.q) : await takeCompound(cid, n.sp, n.q))) return null;
+  for (const n of needs(p)) if (!(n.el != null ? await elemTake(cid, n.el, n.q) : await takeCompound(cid, n.sp, n.q))) return null;
   const made: { sp: string; q: number }[] = [];
   for (const g of yields(p)) {
     if (g.gas) continue;
@@ -64,6 +65,6 @@ export async function learnRecipes(cid: string, ids: string[]) {
   const [c] = await db.select({ activity: characters.activity }).from(characters).where(eq(characters.id, cid));
   const act = c?.activity ?? {}, nb = new Set(act.notebook ?? []);
   const add = ids.filter((id) => BY_ID.has(id) && !nb.has(id));
-  if (add.length) await db.update(characters).set({ activity: { ...act, notebook: [...nb, ...add] } as never }).where(eq(characters.id, cid));
+  if (add.length) await saveActivity(cid, { ...act, notebook: [...nb, ...add] } as never);
   return add;
 }

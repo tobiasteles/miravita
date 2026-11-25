@@ -232,6 +232,8 @@ export const characters = pgTable(
         exp?: { tier: number; slug: string; endsAt: number } | null;
         dig?: { charges: number; at: number };
         last?: string[]; // relatório da última atividade (expedição, escavação, síntese)
+        hz?: { at: number; da: number; dose: number; load: { rad: number; tox: number }; prot: { rad: number; tox: number } }; // exposição a radioativos/tóxicos (ver lib/hazard.ts)
+        cont?: Record<string, number>; // Contenção do laboratório: elemento (Z) → quantidade
         notebook?: string[]; // Caderno de Descobertas: ids das reações aprendidas (por experimento ou missão), além das iniciais
       }>()
       .default({})

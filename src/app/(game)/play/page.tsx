@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getActiveCharacter } from "@/lib/session";
 import { xpToNext } from "@/lib/game/xp";
+import { doseNow } from "@/lib/game/hazard";
 import { biomeLabel, className, mapLabel, realmName, realmTagline } from "@/i18n/content";
 import { subset } from "@/i18n";
 import { I18nProvider } from "@/i18n/client";
@@ -86,6 +87,11 @@ export default async function Play() {
                 XP {f.n(Number(c.xp))} / {f.n(xpToNext(c.level))}
               </span>
               <span className="flex items-center gap-3">
+                {doseNow(c.activity?.hz) >= 1 && (
+                  <Link href="/atividades" title={t("hz.warn")} className="rounded border border-amber-500/60 bg-amber-500/10 px-1.5 text-amber-200">
+                    {t("hz.chip", { dose: Math.round(doseNow(c.activity?.hz)) })}
+                  </Link>
+                )}
                 <span className="flex items-center gap-1">
                   <GameIcon name="heart" className="text-rose-400" /> {c.hp}
                 </span>

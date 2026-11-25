@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { inventory, items } from "@/db/schema";
 import type { EquipStats } from "@/lib/game/equipment";
+import { isHazardous } from "@/lib/game/hazard";
+import { addHazardous, takeHazardous } from "@/lib/hazard";
 type Rarity = "comum" | "raro" | "epico" | "lendario";
 type NewItem = { name: string; type: "arma" | "acessorio" | "armadura" | "elmo" | "botas" | "manoplas"; slot?: string; rarity: Rarity; stats: EquipStats; value: number; z?: number };
 // cria o item, desequipa o anterior do mesmo tipo e equipa o novo
@@ -20,6 +22,7 @@ export async function giveEquipped(cid: string, it: NewItem) {
 }
 // soma elementos ao inventário (cria o item "material" se ainda não existir para esse número atômico)
 export async function addElement(cid: string, z: number, n: number) {
+  if (isHazardous(z)) return addHazardous(cid, z, n); // radioativo/tóxico: limite de carga + Contenção (lib/hazard.ts)
   const [it] = await db
     .select({ id: items.id })
     .from(items)
@@ -41,6 +44,7 @@ export async function elementQty(cid: string, z: number) {
   return r ?? null;
 }
 export async function takeElement(cid: string, z: number, n: number) {
+  if (isHazardous(z)) return takeHazardous(cid, z, n);
   const r = await elementQty(cid, z);
   if (!r || r.quantity < n) return false;
   await db.update(inventory).set({ quantity: r.quantity - n }).where(eq(inventory.id, r.id));

@@ -12,11 +12,12 @@ import { CONS, addCons } from "@/lib/consumables";
 import { addElement, takeElement, elementQty } from "@/lib/equip";
 import { addStone } from "@/lib/stone";
 import { EXP, chargesNow } from "@/lib/game/activities";
+import { keep, saveActivity } from "@/lib/hazard";
 import { activeEvents, evMult } from "@/lib/game/live";
 
 const XPM = Number(process.env.XP_MULTIPLIER ?? 1), rn = (a: number, b: number) => a + Math.floor(Math.random() * (b - a + 1)), pk = <T,>(a: readonly T[]) => a[rn(0, a.length - 1)];
 const nm = (z: number) => ELEMENT_BY_Z.get(z)?.[2] ?? `Z=${z}`;
-const save = (id: string, activity: Record<string, unknown>) => db.update(characters).set({ activity: activity as never }).where(eq(characters.id, id));
+const save = (id: string, activity: Record<string, unknown>) => saveActivity(id, activity as never); // preserva a Contenção e a exposição (lib/hazard.ts)
 
 // ───── EXPEDIÇÕES ─────
 export async function startExpedition(fd: FormData) {
@@ -44,7 +45,7 @@ export async function claimExpedition() {
       rep.push(`+${n}× ${nm(z)}`);
     }
     await track(a.c.id, "gather", "", drops);
-    await db.update(characters).set({ level: r.level, xp: r.xp, gold: Number(a.c.gold) + gold, activity: { ...act, exp: null, last: rep } as never }).where(eq(characters.id, a.c.id));
+    await db.update(characters).set({ level: r.level, xp: r.xp, gold: Number(a.c.gold) + gold, activity: (await keep(a.c.id, { ...act, exp: null, last: rep } as never)) as never }).where(eq(characters.id, a.c.id));
     revalidatePath("/atividades");
   });
 }
@@ -65,7 +66,7 @@ export async function dig(fd: FormData) {
       await track(a.c.id, "gather", "", n);
     }
     const g = rn(2, 6) + Math.floor(a.c.level / 2);
-    await db.update(characters).set({ gold: Number(a.c.gold) + g, activity: { ...act, dig: { charges: d.charges - 1, at: d.at }, last: rep } as never }).where(eq(characters.id, a.c.id));
+    await db.update(characters).set({ gold: Number(a.c.gold) + g, activity: (await keep(a.c.id, { ...act, dig: { charges: d.charges - 1, at: d.at }, last: rep } as never)) as never }).where(eq(characters.id, a.c.id));
     revalidatePath("/atividades");
   });
 }

@@ -225,4 +225,5 @@ export const compoundsEn: Record<string, string> = {
   BaSO4: "Barium Sulfate", HNO3: "Nitric Acid", KNO3: "Potassium Nitrate (Saltpeter)", C6H12O6: "Glucose", C2H5OH: "Ethanol", CH4: "Methane",
   CaO: "Calcium Oxide (Quicklime)", "Ca(OH)2": "Calcium Hydroxide", CaCO3: "Calcium Carbonate", Na2CO3: "Sodium Carbonate", Na2SiO3: "Glass (Sodium Silicate)",
   Fe2O3: "Iron Oxide (Rust)", Al2O3: "Alumina",
+  CdS: "Cadmium Sulfide (Yellow Pigment)", "(NH4)2SO4": "Ammonium Sulfate (Fertilizer)", CuSO4: "Copper Sulfate (Bordeaux Mixture)",
 };

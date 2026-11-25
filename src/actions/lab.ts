@@ -12,9 +12,10 @@ import { BY_ID, COMPOUND_PT, compoundValue, elementOf, equation, findDanger, fin
 import { ELEMENT_BY_Z } from "@/lib/game/elements";
 import { compoundName, elementName } from "@/i18n/content";
 import { getT } from "@/i18n/server";
+import { saveActivity } from "@/lib/hazard";
 
 type Act = NonNullable<(typeof characters.$inferSelect)["activity"]>;
-const save = (id: string, activity: Act) => db.update(characters).set({ activity: activity as never }).where(eq(characters.id, id));
+const save = (id: string, activity: Act) => saveActivity(id, activity); // preserva a Contenção e a exposição
 const done = () => revalidatePath("/atividades");
 
 // Os relatórios são gravados no idioma de quem joga (como o log da batalha). Tudo roda sob withChar: o servidor decide, o cliente só pede.

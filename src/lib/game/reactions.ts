@@ -71,6 +71,10 @@ export const REACTIONS: Reaction[] = [
   { id: "vidro", eq: "SiO2 + Na2CO3 -> Na2SiO3 + CO2^", cond: "heat" }, // vidro (silicato de sódio): insumo de forja e de venda
   { id: "ferrugem", eq: "4 Fe + 3 O2 -> 2 Fe2O3", cond: "none" },
   { id: "termita", eq: "Fe2O3 + 2 Al -> 2 Fe + Al2O3", cond: "spark" },
+  // usos dos tóxicos: pigmento (cádmio), fertilizante (nitrogenado) e pesticida (calda bordalesa, de cobre)
+  { id: "cds", eq: "Cd + S -> CdS", cond: "heat" },
+  { id: "sulfamon", eq: "2 NH3 + H2SO4 -> (NH4)2SO4", cond: "none" },
+  { id: "cuso4", eq: "Cu + 2 H2SO4 -> CuSO4 + SO2^ + 2 H2O", cond: "heat" },
 ];
 export const PARSED: Parsed[] = REACTIONS.map(parse);
 export const BY_ID = new Map(PARSED.map((r) => [r.id, r]));
@@ -116,6 +120,7 @@ export const COMPOUND_PT: Record<string, string> = {
   BaSO4: "Sulfato de Bário", HNO3: "Ácido Nítrico", KNO3: "Nitrato de Potássio (Salitre)", C6H12O6: "Glicose", C2H5OH: "Etanol", CH4: "Metano",
   CaO: "Óxido de Cálcio (Cal Virgem)", "Ca(OH)2": "Hidróxido de Cálcio", CaCO3: "Carbonato de Cálcio", Na2CO3: "Carbonato de Sódio", Na2SiO3: "Vidro (Silicato de Sódio)",
   Fe2O3: "Óxido de Ferro (Ferrugem)", Al2O3: "Alumina",
+  CdS: "Sulfeto de Cádmio (Pigmento Amarelo)", "(NH4)2SO4": "Sulfato de Amônio (Fertilizante)", CuSO4: "Sulfato de Cobre (Calda Bordalesa)",
 };
 // compostos que viram consumíveis (preparar): [consumível, quantidade por unidade]. Os 3 primeiros mantêm a economia das receitas antigas.
 export const USES: Record<string, { cons: "hp" | "ea" | "tp"; n: number }> = { H2O: { cons: "hp", n: 3 }, NaCl: { cons: "ea", n: 3 }, SiO2: { cons: "tp", n: 1 }, H2O2: { cons: "hp", n: 2 }, NH3: { cons: "ea", n: 2 } };
